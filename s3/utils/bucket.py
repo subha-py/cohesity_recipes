@@ -1,5 +1,9 @@
 from collections import namedtuple
 from s3.utils.aws_uploader import AwsS3Uploader
+from s3.utils.aws_highlvlapi.aws_transfer_manager import TransferCallback as aws_TransferCallback
+import os
+from boto3.s3.transfer import TransferConfig
+from s3.utils.aws_uploader import Chunk
 def get_buckets_from_prefix(client, prefix, count=0):
     """
     
@@ -21,12 +25,106 @@ def get_buckets_from_prefix(client, prefix, count=0):
             break
     return result
 
-# def put_file_to_bucket_with_mpu(origpath, destpath,access_key,secret_access_key,endpoint, awsprofile=None):
-#     Args = namedtuple('Args', ['origpath', 'destpath', 'awsprofile','access_key','secret_access_key','endpoint'])
-#     args = Args(origpath, destpath, awsprofile, access_key, secret_access_key, endpoint)
-#     uploader = AwsS3Uploader(access_key=args.access_key,secret_access_key=args.secret_access_key, endpoint=args.endpoint)
-#     if uploader.upload_file(args.origpath, args.destpath):
-#         print('Success')
-#     else:
-#         raise ('Upload Complete but Invalid')
+def get_fileSize(file_path):
+    """
+    Get the size of a file and return in Bytes
+    :param file_path:
+    :return: size of file in Bytes
+    """
+    # file size bytes
+    return os.path.getsize(file_path)
 
+
+def upload_simple_multi_part(client, local_file_path, bucket, remote_file_path):
+    config = TransferConfig(multipart_chunksize=1024)
+    callback = aws_TransferCallback(get_fileSize(local_file_path))
+    client.upload_file(filename=local_file_path, bucket=bucket, key=remote_file_path, Config=config,
+                       Callback=callback)
+
+
+def start_multipart_upload(client,bucket, dest_path):
+    multipart_meta = client.create_multipart_upload(
+        Bucket=bucket,
+        Key=dest_path,
+    )
+
+    return multipart_meta
+
+def upload_multipart_part(client, upload_meta, chunk):
+    with open(chunk.path, 'rb') as reader:
+        response = client.upload_part(
+            Bucket=upload_meta['Bucket'],
+            Key=upload_meta['Key'],
+            PartNumber=chunk.part_number,
+            UploadId=upload_meta['UploadId'],
+            Body=reader
+        )
+    etag = response['ETag'][1:-1]
+    if chunk.validate(etag):
+        return True
+    else:
+        # TODO Retry
+        raise ('part {} not valid - {}'.format(chunk.part_number, chunk.path))
+
+
+def abort_multipart_upload(client, upload_meta):
+    client.abort_multipart_upload(
+        Bucket=upload_meta['Bucket'],
+        Key=upload_meta['Key'],
+        uploadId=upload_meta['uploadId'],
+    )
+
+
+def complete_multipart_upload(client,upload_meta, chunks):
+    # == Create multipart upload dict ==
+    part_dict = {
+        'Parts': []
+    }
+
+    for chunk in chunks:
+        part_dict['Parts'].append(
+            {
+                'ETag': chunk.etag,
+                'PartNumber': chunk.part_number
+            }
+        )
+
+    # == Send Packet ==
+    response = client.complete_multipart_upload(
+        Bucket=upload_meta['Bucket'],
+        Key=upload_meta['Key'],
+        UploadId=upload_meta['UploadId'],
+        MultipartUpload=part_dict
+    )
+    return response
+
+def upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_file_path, chunk_size_mib=4):
+    # Init multi-part upload
+    tmp_dir = os.path.dirname(local_file)
+    multipart_meta = start_multipart_upload(next(client_list_cycle), bucket_name, remote_file_path)
+    try:
+        file_size = get_fileSize(local_file)
+        read_pos = 0
+        chunk_part = 1
+        chunk_size_bytes = chunk_size_mib * 1024 * 1024
+        chunk_basename = os.path.splitext(os.path.basename(local_file))[0]
+        chunks = []
+        # with open(origin_path, 'rb') as reader:
+        while read_pos < file_size:
+            # Update chunk name (path)
+            chunk_path = os.path.join(tmp_dir, '{}_chunk_{}'.format(chunk_basename, chunk_part))
+            # Create a chunk
+            chunk = Chunk(chunk_path, chunk_part, chunk_size_bytes=chunk_size_bytes)
+            chunk.create_chunk(local_file)
+            chunks.append(chunk)
+            print('uploading chunk {}'.format(chunk_part))
+            upload_multipart_part(next(client_list_cycle), multipart_meta, chunk)
+            # update read position and chunk part
+            read_pos += chunk_size_bytes
+            chunk_part += 1
+            # == Complete Upload ==
+        multipart_complete_meta = complete_multipart_upload(next(client_list_cycle), multipart_meta, chunks)
+
+    except:
+        # Cleanup multipart upload if exception
+        abort_multipart_upload(next(client_list_cycle), multipart_meta)

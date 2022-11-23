@@ -253,16 +253,17 @@ class Chunk:
         self.md5_bytes = None
         self.etag = None  # AWS md5 (unofficially)
 
-    def create_chunk(self, reader, memory_size_bytes=104857600):
+    def create_chunk(self, origin_path, memory_size_bytes=104857600):
         # 1MiB * 1024KiB/1MiB * 1024 B/1KiB
-        tmp_dir = os.path.dirname(reader.name)
+        # tmp_dir = os.path.dirname(reader.name)
 
         with open(self.path, 'wb') as writer:
             for ibytes in range(0, self.size, int(memory_size_bytes)):
                 # figure out how much to read
                 next_read_bytes = min(memory_size_bytes, (self.size - ibytes))
                 # Grab the next bytes
-                bitbytes = reader.read(next_read_bytes)
+                with open(origin_path, 'rb') as reader:
+                    bitbytes = reader.read(next_read_bytes)
                 # Write the bytes
                 writer.write(bitbytes)
 
