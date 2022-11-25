@@ -125,6 +125,7 @@ def upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_
             # == Complete Upload ==
         multipart_complete_meta = complete_multipart_upload(next(client_list_cycle), multipart_meta, chunks)
 
-    except:
+    except Exception as ex:
         # Cleanup multipart upload if exception
+        print("Something went wrong while uploading file - {} - {}".format(bucket_name, ex))
         abort_multipart_upload(next(client_list_cycle), multipart_meta)

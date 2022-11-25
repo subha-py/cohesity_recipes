@@ -62,5 +62,7 @@ if __name__ == '__main__':
     setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.75")
     client_list_cycle = get_client_cycle()
     bucket_name = 'subha_mpu_test_0'
-    local_file = 'test_files/file.mp4'
-    upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_file_path='videos/final.mp4',chunk_size_mib=20)
+    local_file = '/home/cohesity/FioFiles/size_100m'
+    chunksizes = [2,4,8,16,24]
+    upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_file_path='fioFile/size_100m',
+                             chunk_size_mib=random.choice(chunksizes))

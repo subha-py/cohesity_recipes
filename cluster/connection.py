@@ -62,7 +62,7 @@ def setup_cluster_automation_variables_in_environment(cluster_ip, username="admi
     get_node_ips(cluster_ip)
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.75")
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182", password="admin")
     print(os.environ.get("accessToken"))
     print(os.environ.get("s3AccessKeyId"))
     print(os.environ.get("s3SecretKey"))
