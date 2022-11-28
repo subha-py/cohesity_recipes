@@ -45,5 +45,5 @@ if __name__ == '__main__':
     # put_tags_in_bucket('LCMTestBucket_Random_19', count=2000)
     # mpu testing
     setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.75")
-    put_tags_in_bucket(prefix="subha_mpu", count=4)
+    put_tags_in_bucket(prefix="LCMTestBucket_Random_19", count=20000)
     # overwrite_files_in_bucket(buckets[0])
