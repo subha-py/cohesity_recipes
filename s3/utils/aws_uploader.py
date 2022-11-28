@@ -272,6 +272,8 @@ class Chunk:
         self.md5_bytes = get_md5(self.path, returnHex=False)
         # change status
         self.status = ChunkStatus.CREATED
+    def destroy(self):
+        os.remove(self.path)
 
     def validate(self, etag):
         self.etag = etag
@@ -300,4 +302,6 @@ def get_md5(file_path, chunk_size=104857600, returnHex=True):
         return file_hash.hexdigest()
     else:
         return file_hash.digest()
+
+
 

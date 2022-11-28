@@ -3,14 +3,19 @@ import requests
 import urllib3
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
+import sys
+sys.path.extend('/home/cohesity/PycharmProjects/cohesity_recipes')
 import random
 from itertools import cycle
 import os
+from multiprocessing import Pool, cpu_count
 
 from s3.utils.bucket import (
     get_buckets_from_prefix,
-    upload_custom_multi_part
+    upload_custom_multi_part,
+    upload_files_in_bucket,
+    upload_files_in_buckets
+
 )
 from s3.utils.connector import get_s3_client, get_endpoint
 from s3.utils.objects import get_random_object_keys, put_random_object_tags
@@ -20,14 +25,7 @@ from s3.utils.aws_uploader import Chunk
 import boto3
 
 
-def get_client_cycle():
-    ips = os.environ.get("node_ips").split(",")
-    client_list = []
-    for ip in ips:
-        client = get_s3_client(get_endpoint(ip), os.environ.get("s3AccessKeyId"), os.environ.get("s3SecretKey"))
-        if client:
-            client_list.append(client)
-    return cycle(client_list)
+
 
 
 def put_tags_in_bucket(prefix='LCMTestBucket', count=200):
@@ -62,7 +60,7 @@ if __name__ == '__main__':
     setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.75")
     client_list_cycle = get_client_cycle()
     bucket_name = 'subha_mpu_test_0'
-    local_file = '/home/cohesity/FioFiles/size_100m'
-    chunksizes = [2,4,8,16,24]
-    upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_file_path='fioFile/size_100m',
-                             chunk_size_mib=random.choice(chunksizes))
+    # buckets = get_buckets_from_prefix(next(client_list_cycle), prefix=prefix)
+    buckets = [bucket_name]
+    # upload_files_in_bucket(client_list_cycle, bucket_name)
+    upload_files_in_buckets(client_list_cycle, buckets)

@@ -1,7 +1,8 @@
 import random
 import requests
 import os
-
+from itertools import cycle
+from s3.utils.connector import get_s3_client,get_endpoint
 def get_access_token(cluster_ip, username="admin", password="Syst7mt7st", domain="local"):
     headers = {'Content-Type': "application/json", 'accept': "application/json"}
     data = {
@@ -60,6 +61,15 @@ def setup_cluster_automation_variables_in_environment(cluster_ip, username="admi
     get_access_token(cluster_ip,username,password,domain)
     get_access_keys(cluster_ip, domain)
     get_node_ips(cluster_ip)
+
+def get_client_cycle():
+    ips = os.environ.get("node_ips").split(",")
+    client_list = []
+    for ip in ips:
+        client = get_s3_client(get_endpoint(ip), os.environ.get("s3AccessKeyId"), os.environ.get("s3SecretKey"))
+        if client:
+            client_list.append(client)
+    return cycle(client_list)
 
 if __name__ == '__main__':
     setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182", password="admin")
