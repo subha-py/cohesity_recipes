@@ -1,7 +1,9 @@
 from uuid import uuid4
 import random
-
-
+from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
+from s3.utils.connector import get_endpoint, get_s3_client
+import os
+from multiprocessing import Pool, cpu_count
 def get_random_object_keys(client, bucket_name, count=1):
     keys = []
     try:
@@ -17,19 +19,13 @@ def get_random_object_keys(client, bucket_name, count=1):
         keys.append(content['Key'])
     return keys
 
-def put_random_object_tags(client_list_cycle, bucket_name, keys):
-    tags = {
-        'k1': 'v1',
-        'k2': 'v2',
-        'k3': 'v3',
-        'k4': 'v4'
-    }
-    for key in keys:
-        print("working on bucket - {}, key - {}".format(bucket_name, key))
-        tag_key = random.choice(list(tags.keys()))
-        tag_val = tags[tag_key]
+def put_random_object_tags(bucket_name, keys):
+    def put_tag(bucket_name, key, tag_key, tag_val):
+        ips = os.environ.get("node_ips").split(",")
+        ip = random.choice(ips)
+        client = get_s3_client(get_endpoint(ip), os.environ.get("s3AccessKeyId"), os.environ.get("s3SecretKey"))
         try:
-            put_tags_response = next(client_list_cycle).put_object_tagging(
+            put_tags_response = client.put_object_tagging(
                 Bucket=bucket_name,
                 Key=key,
                 Tagging={
@@ -43,3 +39,18 @@ def put_random_object_tags(client_list_cycle, bucket_name, keys):
             )
         except Exception as ex:
             print(ex)
+    tags = {
+        'k1': 'v1',
+        'k2': 'v2',
+        'k3': 'v3',
+        'k4': 'v4'
+    }
+    pool = Pool(processes=cpu_count() - 1)
+    for key in keys:
+        print("working on bucket - {}, key - {}".format(bucket_name, key))
+        tag_key = random.choice(list(tags.keys()))
+        tag_val = tags[tag_key]
+        arg = (bucket_name, key, tag_key, tag_val)
+        pool.apply_async(put_tag, args=arg)
+    pool.close()
+    pool.join()

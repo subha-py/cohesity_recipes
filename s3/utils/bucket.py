@@ -1,16 +1,13 @@
 import random
-from collections import namedtuple
-from s3.utils.aws_uploader import AwsS3Uploader
 from s3.utils.aws_highlvlapi.aws_transfer_manager import TransferCallback as aws_TransferCallback
 import os
 from boto3.s3.transfer import TransferConfig
 from s3.utils.aws_uploader import Chunk
 import string
 from files.fio import get_fio_files
-from multiprocessing import Pool, cpu_count, Manager
-from s3.utils.objects import put_random_object_tags
+from multiprocessing import Pool, cpu_count
+from s3.utils.objects import put_random_object_tags, get_random_object_keys
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
-
 def get_buckets_from_prefix(client, prefix, count=0):
     """
     
@@ -141,9 +138,9 @@ def upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_
 
     except Exception as ex:
         # Cleanup multipart upload if exception
-        print("Something went wrong while uploading file - {} - {}".format(bucket_name, ex))
+        print("Something went wrong while uploading file - {} - {} - details - {}".format(bucket_name, ex, multipart_meta))
         abort_multipart_upload(next(client_list_cycle), multipart_meta)
-
+        os.rmdir(tmp_dir)
 
 def create_random_prefix():
     chars = list(string.ascii_letters)[:-6] # last six are tabs, binary sign
@@ -165,6 +162,7 @@ def create_random_filename():
 def upload_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFiles", chunksizes=None):
     client_list_cycle = get_client_cycle()
     files_to_upload = get_fio_files(local_directory)
+    random.shuffle(files_to_upload)
     if chunksizes is None:
         chunksizes = [2, 4, 8, 16, 24]
     for file in files_to_upload:
@@ -184,8 +182,14 @@ def upload_files_in_buckets(buckets, local_directory="/home/cohesity/FioFiles", 
     pool.join()
     return
 
-if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.75")
-    bucket_name = 'subha_mpu_test_0'
-    buckets = [bucket_name,bucket_name]
-    upload_files_in_buckets(buckets)
+def overwrite_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFiles", chunksizes=None):
+    client_list_cycle = get_client_cycle()
+    files_to_upload = get_fio_files(local_directory)
+    random.shuffle(files_to_upload)
+    if chunksizes is None:
+        chunksizes = [2, 4, 8, 16, 24]
+    for file in files_to_upload:
+        remote_file_path = get_random_object_keys(next(client_list_cycle), bucket_name)[0]
+        upload_custom_multi_part(client_list_cycle, bucket_name, file, remote_file_path, random.choice(chunksizes))
+        print(f"file - {file} is sucessfully overwritten to - {bucket_name}:{remote_file_path}")
+        put_random_object_tags(client_list_cycle, bucket_name, [remote_file_path])
