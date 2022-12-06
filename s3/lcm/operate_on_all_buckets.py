@@ -23,7 +23,8 @@ def put_tags_in_bucket(prefix='LCMTestBucket', count=200):
     # todo: put multiprocessing here
     for bucket_name in buckets:
         keys = get_random_object_keys(next(client_list_cycle), bucket_name, count=count)
-        put_random_object_tags(bucket_name, keys)
+        if keys:
+            put_random_object_tags(bucket_name, keys)
 
 def remove_lcm_from_buckets(prefix='LCMTestBucket'):
     client_list_cycle = get_client_cycle()
@@ -44,6 +45,5 @@ def remove_lcm_from_buckets(prefix='LCMTestBucket'):
 if __name__ == '__main__':
     # put_tags_in_bucket('LCMTestBucket_Random_19', count=2000)
     # mpu testing
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.75")
-    put_tags_in_bucket(prefix="LCMTestBucket_Random_19", count=20000)
-    # overwrite_files_in_bucket(buckets[0])
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.197.201")
+    put_tags_in_bucket(count=2000, prefix="LCMTestBucket_")

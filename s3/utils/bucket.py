@@ -7,6 +7,7 @@ import string
 from files.fio import get_fio_files
 from multiprocessing import Pool, cpu_count
 from s3.utils.objects import put_random_object_tags, get_random_object_keys
+from s3.utils.connector import get_s3_client, get_endpoint
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
 def get_buckets_from_prefix(client, prefix, count=0):
     """
@@ -193,3 +194,10 @@ def overwrite_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFi
         upload_custom_multi_part(client_list_cycle, bucket_name, file, remote_file_path, random.choice(chunksizes))
         print(f"file - {file} is sucessfully overwritten to - {bucket_name}:{remote_file_path}")
         put_random_object_tags(client_list_cycle, bucket_name, [remote_file_path])
+
+# def put_acl(bucket_name, client):
+#     print("working on bucket - {}, key - {}".format(bucket_name, key))
+#     ips = os.environ.get("node_ips").split(",")
+#     ip = random.choice(ips)
+#     client = get_s3_client(get_endpoint(ip), os.environ.get("s3AccessKeyId"), os.environ.get("s3SecretKey"))
+#     client.put

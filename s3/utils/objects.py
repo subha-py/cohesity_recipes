@@ -15,12 +15,17 @@ def get_random_object_keys(client, bucket_name, count=1):
     except Exception as ex:
         print("could not get keys for bucket name - {}, due to - {}".format(bucket_name, ex))
         return keys
-    for content in list_response['Contents']:
-        keys.append(content['Key'])
-    return keys
+    if list_response.get('Contents'):
+        for content in list_response['Contents']:
+            keys.append(content['Key'])
+        return keys
+    else:
+        print("Bucket is empty")
+        return
 
 def put_random_object_tags(bucket_name, keys):
     def put_tag(bucket_name, key, tag_key, tag_val):
+        print("working on bucket - {}, key - {}".format(bucket_name, key))
         ips = os.environ.get("node_ips").split(",")
         ip = random.choice(ips)
         client = get_s3_client(get_endpoint(ip), os.environ.get("s3AccessKeyId"), os.environ.get("s3SecretKey"))
@@ -45,12 +50,13 @@ def put_random_object_tags(bucket_name, keys):
         'k3': 'v3',
         'k4': 'v4'
     }
-    pool = Pool(processes=cpu_count() - 1)
+    # pool = Pool(processes=cpu_count() - 1)
     for key in keys:
         print("working on bucket - {}, key - {}".format(bucket_name, key))
         tag_key = random.choice(list(tags.keys()))
         tag_val = tags[tag_key]
         arg = (bucket_name, key, tag_key, tag_val)
-        pool.apply_async(put_tag, args=arg)
-    pool.close()
-    pool.join()
+        put_tag(*arg)
+        # pool.apply_async(put_tag, args=arg)
+    # pool.close()
+    # pool.join()
