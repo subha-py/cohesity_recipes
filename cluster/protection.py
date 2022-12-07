@@ -112,18 +112,7 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
             response_data = response.json()
             if effective_now:
                 id = response_data["uid"]["id"]
-                data = {
-                    "runType": "kRegular"
-                }
-                response = requests.request("POST",
-                                            "https://{}/irisservices/api/v1/public/protectionJobs/run/{}".format(
-                                                ip, id), verify=False,
-                                            headers=headers, json=data)
-                if response.status_code == 204:
-                    print("Successfully started run for protected bucket - {}".format(bucket_name))
-                    return "Success"
-                else:
-                    return "Failed"
+                run_protection_group(protection_id=id)
             else:
                 return response_data
         else:
@@ -132,6 +121,38 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
         print("Could not create pg due to - {}".format(ex))
 
 # todo replace policy id with name
+
+def run_protection_group(protection_name=None, protection_id=None):
+    if not protection_id:
+        res = get_protection_info(protection_name)
+        protection_id = res['id']
+    ips = os.environ.get("node_ips").split(",")
+    ip = random.choice(ips)
+    headers = {'Content-Type': "application/json", 'accept': "application/json"}
+    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
+    data = {
+        "runType": "kRegular"
+    }
+    response = requests.request("POST",
+                                "https://{}/irisservices/api/v1/public/protectionJobs/run/{}".format(
+                                    ip, protection_id), verify=False,
+                                headers=headers, json=data)
+    if response.status_code == 204:
+        print("Successfully started run for protection group - {}".format(protection_id))
+        return True
+    else:
+        print(response)
+        return False
+
+def run_bucket_protection(bucket_name):
+    bucket_info = get_bucket_info(bucket_name)
+    if bucket_info.get('viewProtection'):
+        print("bucket: {} is protected".format(bucket_name))
+        protection_id = bucket_info.get("viewProtection")['protectionJobs'][0].get('jobId')
+        run_protection_group(protection_id=protection_id)
+    else:
+        print("Bucket is not protected")
+
 def create_protection(bucket_list, policy_id, effective_now=True):
     print("got buckets - {}".format(len(bucket_list)))
     ips = os.environ.get("node_ips").split(",")
@@ -146,7 +167,7 @@ def create_protection(bucket_list, policy_id, effective_now=True):
     # pool.join()
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.200.155")
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.198.16",)
     # pg_res = get_protection_info('subha-sample-pg')
     # print(pg_res)
     #
@@ -157,5 +178,7 @@ if __name__ == '__main__':
     # print(viewbox_res)
     client_cycle = get_client_cycle()
     #
-    buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_")
-    res = create_protection(buckets, policy_id="6435825238425154:1650481288823:8214275")
+    buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket")
+    for bucket in buckets:
+        run_bucket_protection(bucket_name=bucket)
+    # res = run_bucket_protection(buckets, policy_id="6435825238425154:1650481288823:10738882")
