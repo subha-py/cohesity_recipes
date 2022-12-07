@@ -1,3 +1,5 @@
+import sys
+sys.path.extend(['/home/cohesity/PycharmProjects/cohesity_recipes'])
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import requests
 import urllib3
@@ -45,5 +47,8 @@ def remove_lcm_from_buckets(prefix='LCMTestBucket'):
 if __name__ == '__main__':
     # put_tags_in_bucket('LCMTestBucket_Random_19', count=2000)
     # mpu testing
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.197.201")
-    put_tags_in_bucket(count=2000, prefix="LCMTestBucket_")
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.183", password="admin")
+    client_cycle = get_client_cycle()
+    buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket")
+    for bucket in buckets:
+        overwrite_files_in_bucket(bucket_name=bucket)
