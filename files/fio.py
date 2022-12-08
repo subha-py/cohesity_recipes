@@ -2,6 +2,7 @@
 # step: 2 run fio in parallel
 
 from multiprocessing import Pool, cpu_count
+from multiprocessing.dummy import Pool as ThreadPool
 import time
 import random
 import os
@@ -41,10 +42,8 @@ def run_fio_command(fio_job_file):
             break
 
 def run_fio_jobs_in_parallel(fio_files, count=0):
-    pool = Pool(processes=cpu_count()-1)
-    for arg in fio_files:
-        print(arg)
-        pool.apply_async(run_fio_command, args=(arg,))
+    pool = ThreadPool(len(fio_files))
+    results = pool.map(run_fio_command, fio_files)
     pool.close()
     pool.join()
     print("Count - {}".format(count))

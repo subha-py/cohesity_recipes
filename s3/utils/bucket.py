@@ -9,6 +9,7 @@ from multiprocessing import Pool, cpu_count
 from s3.utils.objects import put_random_object_tags, get_random_object_keys
 from s3.utils.connector import get_s3_client, get_endpoint
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
+import shutil
 def get_buckets_from_prefix(client, prefix, count=0):
     """
     
@@ -76,7 +77,7 @@ def abort_multipart_upload(client, upload_meta):
     client.abort_multipart_upload(
         Bucket=upload_meta['Bucket'],
         Key=upload_meta['Key'],
-        uploadId=upload_meta['UploadId'],
+        UploadId=upload_meta['UploadId'],
     )
 
 
@@ -134,14 +135,14 @@ def upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_
             chunk_part += 1
             chunk.destroy()
             # == Complete Upload ==
-        os.rmdir(tmp_dir)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         multipart_complete_meta = complete_multipart_upload(next(client_list_cycle), multipart_meta, chunks)
 
     except Exception as ex:
         # Cleanup multipart upload if exception
         print("Something went wrong while uploading file - {} - {} - details - {}".format(bucket_name, ex, multipart_meta))
         abort_multipart_upload(next(client_list_cycle), multipart_meta)
-        os.rmdir(tmp_dir)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 def create_random_prefix():
     chars = list(string.ascii_letters)[:-6] # last six are tabs, binary sign
@@ -193,7 +194,7 @@ def overwrite_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFi
         remote_file_path = get_random_object_keys(next(client_list_cycle), bucket_name)[0]
         upload_custom_multi_part(client_list_cycle, bucket_name, file, remote_file_path, random.choice(chunksizes))
         print(f"file - {file} is sucessfully overwritten to - {bucket_name}:{remote_file_path}")
-        put_random_object_tags(client_list_cycle, bucket_name, [remote_file_path])
+        put_random_object_tags(bucket_name, [remote_file_path])
 
 # def put_acl(bucket_name, client):
 #     print("working on bucket - {}, key - {}".format(bucket_name, key))

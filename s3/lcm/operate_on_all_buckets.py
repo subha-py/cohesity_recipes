@@ -47,8 +47,14 @@ def remove_lcm_from_buckets(prefix='LCMTestBucket'):
 if __name__ == '__main__':
     # put_tags_in_bucket('LCMTestBucket_Random_19', count=2000)
     # mpu testing
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.183", password="admin")
+
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33")
     client_cycle = get_client_cycle()
-    buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket")
+    buckets = get_buckets_from_prefix(next(client_cycle), prefix="worm")
     for bucket in buckets:
-        overwrite_files_in_bucket(bucket_name=bucket)
+        keys = get_random_object_keys(next(client_cycle), bucket, count=500)
+        put_random_object_tags(bucket_name=bucket,keys=keys)
+    # if buckets:
+    #     while True:
+    #         for bucket in buckets:
+    #             overwrite_files_in_bucket(bucket_name=bucket)
