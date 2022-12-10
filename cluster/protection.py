@@ -38,7 +38,11 @@ def get_protection_info(protection_name):
                                                                                                   protection_name),
                                 verify=False, headers=headers)
     if response.status_code == 200:
-        return response.json()[0]
+        res = response.json()
+        if res:
+            return res[0]
+        else:
+            return False
 
 def get_view_box_info(viewbox_name):
     # todo clean up headers with a method
@@ -121,6 +125,23 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
         print("Could not create pg due to - {}".format(ex))
 
 # todo replace policy id with name
+def delete_all_protection_job():
+
+    ips = os.environ.get("node_ips").split(",")
+    ip = random.choice(ips)
+    headers = {'Content-Type': "application/json", 'accept': "application/json"}
+    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
+    response = requests.request("GET",
+                                "https://{}/irisservices/api/v1/public/protectionRuns/".format(
+                                    ip), verify=False,
+                                headers=headers)
+
+    if response.status_code == 200:
+        run_ids = []
+        for run in response.json():
+            run_ids.append(run['jobId'])
+            response = requests.request("POST",
+                                        )
 
 def run_protection_group(protection_name=None, protection_id=None):
     if not protection_id:
@@ -153,12 +174,16 @@ def run_bucket_protection(bucket_name):
     else:
         print("Bucket is not protected")
 
-def create_protection(bucket_list, policy_id, effective_now=True):
+def create_protection(bucket_list, policy_id=None, policy_id_list=None, effective_now=True):
     print("got buckets - {}".format(len(bucket_list)))
     ips = os.environ.get("node_ips").split(",")
     ip_cycle = cycle(ips)
     # pool = Pool(processes=cpu_count() - 1)
     for bucket_name in bucket_list:
+        if policy_id_list is not None:
+            policy_id = random.choice(policy_id_list)
+        if 'Object' in bucket_name:
+            policy_id = policy_id_list[0]
         arg = (bucket_name, next(ip_cycle), policy_id, effective_now, "subha_")
         # process_protection_request(*arg)
         # pool.apply_async(process_protection_request, args=arg)
@@ -167,7 +192,7 @@ def create_protection(bucket_list, policy_id, effective_now=True):
     # pool.join()
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.198.16",)
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182",password="admin")
     # pg_res = get_protection_info('subha-sample-pg')
     # print(pg_res)
     #
@@ -176,9 +201,49 @@ if __name__ == '__main__':
     #
     # viewbox_res = get_view_box_info("NFS_stress_VB")
     # print(viewbox_res)
-    client_cycle = get_client_cycle()
-    #
-    buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket")
-    for bucket in buckets:
-        run_bucket_protection(bucket_name=bucket)
-    # res = run_bucket_protection(buckets, policy_id="6435825238425154:1650481288823:10738882")
+    # client_cycle = get_client_cycle()
+    # policy_id_list = []
+    # policy_id_list.append(get_policy_info('sbera_IF_policy').get('id'))
+    # policy_id_list.append(get_policy_info('sbera_IPF_policy').get('id'))
+    # buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Random")
+    # for bucket in buckets:
+    #     run_bucket_protection(bucket)
+    types = ["Random", "Short", "Hierarchical", "Long", "Object"]
+    for type in types:
+        for i in range(20):
+            pg = "sb_LCMTestBucket_{}_{}".format(type, i)
+            print("working on - pg - {}".format(pg))
+            info = get_protection_info(pg)
+            if not info:
+                continue
+            id = info['id']
+
+            ips = os.environ.get("node_ips").split(",")
+            ip = random.choice(ips)
+            headers = {'Content-Type': "application/json", 'accept': "application/json"}
+            headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
+            response = requests.request("GET",
+                                        "https://{}/irisservices/api/v1/public/protectionRuns?jobId={}".format(
+                                            ip, id), verify=False,
+                                        headers=headers)
+            runs = response.json()
+            for run in runs:
+                copyRuns = run.get('copyRun')
+                if copyRuns:
+                    for copyRun in copyRuns:
+                       if copyRun["target"].get("type") == "kRemote":
+                           if copyRun.get('status') == 'kRunning' or copyRun.get('status') == 'kAccepted':
+                                data = {"copyTaskUid":copyRun.get("taskUid")}
+                                ips = os.environ.get("node_ips").split(",")
+                                ip = random.choice(ips)
+                                response = requests.request("POST",
+                                                            "https://{}/irisservices/api/v1/public/protectionRuns/cancel/{}".format(ip, id),
+                                                            verify=False,
+                                                            headers=headers, json=data)
+                                if response.status_code == 204:
+                                    print("task - data - {} is successfully cancelled - {}".format(data, pg))
+
+                                else:
+                                    print("could not cancel running task - data - {} {}".format(data, pg))
+
+    # todo create methods for these

@@ -65,6 +65,9 @@ def put_random_object_tags(bucket_name, keys):
     # pool.map(put_tag, arg_list)
     # pool.close()
     # pool.join()
+    if len(keys) < 1:
+        print("Nothing to run for bucket - {}".format(bucket_name))
+        return False
     future_to_key = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(keys)) as executor:
         for key in keys:

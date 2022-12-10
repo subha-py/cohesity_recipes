@@ -14,7 +14,7 @@ from s3.utils.bucket import (
 from s3.utils.objects import get_random_object_keys, put_random_object_tags
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
 from multiprocessing import Pool, cpu_count
-
+import concurrent.futures
 
 
 def put_tags_in_bucket(prefix='LCMTestBucket', count=200):
@@ -41,20 +41,32 @@ def remove_lcm_from_buckets(prefix='LCMTestBucket'):
         except Exception as ex:
             print('Could not remove lcm from bucket - {} due to {}'.format(bucket_name, ex))
 
+def run_tag_workload(cluster_ip, prefix, count=200):
+    def run_tag(bucket, count):
+        keys = get_random_object_keys(next(client_cycle), bucket, count=count)
+        put_random_object_tags(bucket_name=bucket, keys=keys)
 
+    setup_cluster_automation_variables_in_environment(cluster_ip=cluster_ip)
+    client_cycle = get_client_cycle()
+    buckets = get_buckets_from_prefix(next(client_cycle), prefix=prefix)
+    future_to_bucket= {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(buckets)) as executor:
+        for bucket in buckets:
+            arg = (bucket, count)
+            future_to_bucket[executor.submit(run_tag, *arg)] = bucket
 
+    for future in concurrent.futures.as_completed(future_to_bucket):
+        bucket = future_to_bucket[future]
+        try:
+            res = future.result()
+        except Exception as exc:
+            print("%r generated an exception: %s" % (bucket, exc))
+        else:
+            print("bucket tags are placed - {}".format(bucket))
 
 if __name__ == '__main__':
     # put_tags_in_bucket('LCMTestBucket_Random_19', count=2000)
     # mpu testing
 
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33")
-    client_cycle = get_client_cycle()
-    buckets = get_buckets_from_prefix(next(client_cycle), prefix="worm")
-    for bucket in buckets:
-        keys = get_random_object_keys(next(client_cycle), bucket, count=500)
-        put_random_object_tags(bucket_name=bucket,keys=keys)
-    # if buckets:
-    #     while True:
-    #         for bucket in buckets:
-    #             overwrite_files_in_bucket(bucket_name=bucket)
+    while True:
+        run_tag_workload(cluster_ip="10.2.195.33",prefix="LCMTestBucket_Long")
