@@ -50,6 +50,8 @@ def run_tag_workload(cluster_ip, prefix, count=200):
     client_cycle = get_client_cycle()
     buckets = get_buckets_from_prefix(next(client_cycle), prefix=prefix)
     future_to_bucket= {}
+    if not buckets:
+        return
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(buckets)) as executor:
         for bucket in buckets:
             arg = (bucket, count)
@@ -69,4 +71,4 @@ if __name__ == '__main__':
     # mpu testing
 
     while True:
-        run_tag_workload(cluster_ip="10.2.195.33",prefix="LCMTestBucket_Long")
+        run_tag_workload(cluster_ip="10.2.195.33",prefix="LCMTestBucket_Object")

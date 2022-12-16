@@ -1,10 +1,13 @@
+import sys
+sys.path.extend(['/home/cohesity/PycharmProjects/cohesity_recipes'])
+
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import requests
 import urllib3
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-
+import sys
 import os
 from itertools import cycle
 import random
@@ -34,7 +37,7 @@ def get_protection_info(protection_name):
     headers = {'Content-Type': "application/json", 'accept': "application/json"}
     headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     response = requests.request("GET",
-                                "https://{}/irisservices/api/v1/public/protectionJobs?names={}".format(cluster_ip,
+                                "https://{}/irisservices/api/v1/public/protectionJobs?names={}".format("10.2.195.77",
                                                                                                   protection_name),
                                 verify=False, headers=headers)
     if response.status_code == 200:
@@ -69,12 +72,13 @@ def get_policy_info(policy_name):
     if response.status_code == 200:
         return response.json()[0]
 
-def process_protection_request(bucket_name, ip, policy_id, effective_now, protection_group_prefix = "s3-test-"):
+def process_protection_request(bucket_name, ip, policy_id, effective_now, protection_group_prefix = "s3-test-",
+                               force=False):
     try:
         headers = {'Content-Type': "application/json", 'accept': "application/json"}
         headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
         bucket_info = get_bucket_info(bucket_name)
-        if bucket_info.get('viewProtection'):
+        if not force and bucket_info.get('viewProtection'):
             print("bucket: {} is already protected".format(bucket_name))
             return
         pg_name = "{}{}".format(protection_group_prefix ,bucket_info['name'])
@@ -125,23 +129,29 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
         print("Could not create pg due to - {}".format(ex))
 
 # todo replace policy id with name
-def delete_all_protection_job():
-
-    ips = os.environ.get("node_ips").split(",")
-    ip = random.choice(ips)
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
-    response = requests.request("GET",
-                                "https://{}/irisservices/api/v1/public/protectionRuns/".format(
-                                    ip), verify=False,
-                                headers=headers)
-
-    if response.status_code == 200:
-        run_ids = []
-        for run in response.json():
-            run_ids.append(run['jobId'])
-            response = requests.request("POST",
-                                        )
+def unprotect_all_buckets(buckets):
+    for bucket in buckets:
+        print("working on bucket - {}".format(bucket))
+        bucket_info = get_bucket_info(bucket)
+        if not bucket_info.get('viewProtection'):
+            continue
+        bucketProtections = bucket_info.get('viewProtection')['protectionJobs']
+        ips = os.environ.get("node_ips").split(",")
+        ip = random.choice(ips)
+        headers = {'Content-Type': "application/json", 'accept': "application/json"}
+        headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
+        for bucketProtection in bucketProtections:
+            if bucketProtection.get("jobName").startswith("_DELETED"): # after deletion of a pg it named as DELETED_pg_name
+                # todo: is this a bug investigate
+                continue
+            response = requests.request("DELETE",
+                                        "https://{}/irisservices/api/v1/public/protectionJobs/{}".format(
+                                            ip,bucketProtection['jobId']), verify=False,
+                                        headers=headers)
+            if response.status_code == 204:
+                print("deletion of bucketProtection - {} is successful".format(bucketProtection.get("jobName")))
+            else:
+                print("deletion of bucketProtection - {} is unsuccessful".format(bucketProtection.get("jobName")))
 
 def run_protection_group(protection_name=None, protection_id=None):
     if not protection_id:
@@ -174,7 +184,7 @@ def run_bucket_protection(bucket_name):
     else:
         print("Bucket is not protected")
 
-def create_protection(bucket_list, policy_id=None, policy_id_list=None, effective_now=True):
+def create_protection(bucket_list, policy_id=None, policy_id_list=None, effective_now=True, force=False, prefix="subha_"):
     print("got buckets - {}".format(len(bucket_list)))
     ips = os.environ.get("node_ips").split(",")
     ip_cycle = cycle(ips)
@@ -182,37 +192,47 @@ def create_protection(bucket_list, policy_id=None, policy_id_list=None, effectiv
     for bucket_name in bucket_list:
         if policy_id_list is not None:
             policy_id = random.choice(policy_id_list)
-        if 'Object' in bucket_name:
-            policy_id = policy_id_list[0]
-        arg = (bucket_name, next(ip_cycle), policy_id, effective_now, "subha_")
+        arg = (bucket_name, next(ip_cycle), policy_id, effective_now, prefix)
         # process_protection_request(*arg)
         # pool.apply_async(process_protection_request, args=arg)
-        process_protection_request(*arg)
+        process_protection_request(*arg, force=force)
     # pool.close()
     # pool.join()
 
-if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182",password="admin")
-    # pg_res = get_protection_info('subha-sample-pg')
-    # print(pg_res)
-    #
-    # bucket_res = get_bucket_info("LCMTestBucket_Short_19")
-    # print(bucket_res)
-    #
-    # viewbox_res = get_view_box_info("NFS_stress_VB")
-    # print(viewbox_res)
-    # client_cycle = get_client_cycle()
-    # policy_id_list = []
-    # policy_id_list.append(get_policy_info('sbera_IF_policy').get('id'))
-    # policy_id_list.append(get_policy_info('sbera_IPF_policy').get('id'))
-    # buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Random")
-    # for bucket in buckets:
-    #     run_bucket_protection(bucket)
+def pause_protection_job(pg_name):
+    headers = {'Content-Type': "application/json", 'accept': "application/json"}
+    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
+    ips = os.environ.get("node_ips").split(",")
+    ip = random.choice(ips)
+    info = get_protection_info(pg_name)
+    if not info:
+        return
+    data = {
+          "pause": True,
+          "pauseReason": 0
+        }
+    response = requests.request("POST",
+                                "https://{}/irisservices/api/v1/public/protectionJobState/{}".format(
+                                    ip, info['id']),
+                                verify=False,
+                                headers=headers, json=data)
+    if response.status_code == 204:
+        print("Successfully paused pg - {}".format(pg_name))
+    else:
+        print("pausing pg is unsuccessful - {}".format(pg_name))
+
+def cancel_all_pending_job_runs(cluster_ip, prefix="LCMTestBucket"):
+
+    setup_cluster_automation_variables_in_environment(cluster_ip=cluster_ip)
+    client_cycle = get_client_cycle()
+     #todo: get pg from buckets
     types = ["Random", "Short", "Hierarchical", "Long", "Object"]
     for type in types:
         for i in range(20):
-            pg = "sb_LCMTestBucket_{}_{}".format(type, i)
-            print("working on - pg - {}".format(pg))
+            pg = "subha_LCMTestBucket_{}_{}".format(type, i) # todo: instead of this.
+    # for i in range(100):
+    #         pg  = 'sg_aktest_{}'.format(i)
+            print("cancelling runs on - pg - {}".format(pg))
             info = get_protection_info(pg)
             if not info:
                 continue
@@ -226,18 +246,24 @@ if __name__ == '__main__':
                                         "https://{}/irisservices/api/v1/public/protectionRuns?jobId={}".format(
                                             ip, id), verify=False,
                                         headers=headers)
-            runs = response.json()
+            runs = response
+            if runs.status_code != 200:
+                print("Failed to get runs for pg - {}".format(pg))
+                continue
+            runs = runs.json()
             for run in runs:
                 copyRuns = run.get('copyRun')
                 if copyRuns:
                     for copyRun in copyRuns:
-                       if copyRun["target"].get("type") == "kRemote":
-                           if copyRun.get('status') == 'kRunning' or copyRun.get('status') == 'kAccepted':
-                                data = {"copyTaskUid":copyRun.get("taskUid")}
+                        target = copyRun["target"].get("type")
+                        if target == "kRemote" or target == "kArchival" or target == "kLocal":
+                            if copyRun.get('status') == 'kRunning' or copyRun.get('status') == 'kAccepted':
+                                data = {"copyTaskUid": copyRun.get("taskUid")}
                                 ips = os.environ.get("node_ips").split(",")
                                 ip = random.choice(ips)
                                 response = requests.request("POST",
-                                                            "https://{}/irisservices/api/v1/public/protectionRuns/cancel/{}".format(ip, id),
+                                                            "https://{}/irisservices/api/v1/public/protectionRuns/cancel/{}".format(
+                                                                ip, id),
                                                             verify=False,
                                                             headers=headers, json=data)
                                 if response.status_code == 204:
@@ -246,4 +272,5 @@ if __name__ == '__main__':
                                 else:
                                     print("could not cancel running task - data - {} {}".format(data, pg))
 
-    # todo create methods for these
+if __name__ == '__main__':
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33")
