@@ -247,7 +247,7 @@ def pause_protection_job(pg_name):
     else:
         print("pausing pg is unsuccessful - {}".format(pg_name))
 
-def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False):
+def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread_num=None):
     def cancel_pending_runs_of_pg(pg, delete_pg, pause):
         if pause:
             pause_protection_job(pg)
@@ -296,7 +296,8 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False):
     if not pgs:
         return
     future_to_pg = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(pgs),12)) as executor:
+    thread = os.environ.get("node_ips").count(",")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(pgs), thread)) as executor:
         for pg in pgs:
             arg = (pg,delete_pg, pause)
             future_to_pg[executor.submit(cancel_pending_runs_of_pg, *arg)] = pg
@@ -310,10 +311,10 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False):
             print("deleted protection group - {}".format(pg))
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.75")
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.200.155",)
     pgs = get_all_cluster_protection_jobs()
     pg_name_list = []
     for pg in pgs:
-        if 'aktest' not in pg['name']:
+        if 'View_Job1' in pg['name']:
             pg_name_list.append(pg['name'])
-    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=True, pause=True)
+    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=True)
