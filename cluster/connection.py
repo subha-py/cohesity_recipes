@@ -2,7 +2,7 @@ import random
 import requests
 import os
 from itertools import cycle
-from s3.utils.connector import get_s3_client,get_endpoint
+from s3.utils.connector import get_s3_client,get_endpoint,get_s3_resource
 def get_access_token(cluster_ip, username="admin", password="Syst7mt7st", domain="local"):
     headers = {'Content-Type': "application/json", 'accept': "application/json"}
     data = {
@@ -71,9 +71,19 @@ def get_client_cycle():
             client_list.append(client)
     return cycle(client_list)
 
+def get_resource_cycle():
+    ips = os.environ.get("node_ips").split(",")
+    client_list = []
+    for ip in ips:
+        client = get_s3_resource(get_endpoint(ip), os.environ.get("s3AccessKeyId"), os.environ.get("s3SecretKey"))
+        if client:
+            client_list.append(client)
+    return cycle(client_list)
+
+
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182", password="admin")
-    print(os.environ.get("accessToken"))
-    print(os.environ.get("s3AccessKeyId"))
-    print(os.environ.get("s3SecretKey"))
-    print(os.environ.get("node_ips"))
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33",)
+    cycle = get_resource_cycle()
+    resource = next(cycle)
+    object = resource.Object("LCMTestBucket_Hierarchical_0","zytfuHYk/9.WWhUlN4ODfkOAOsn.rnd")
+    print("Object expiration - {}".format(object.expiration))

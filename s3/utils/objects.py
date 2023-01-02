@@ -1,6 +1,6 @@
 from uuid import uuid4
 import random
-from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
+from cluster.connection import setup_cluster_automation_variables_in_environment, get_resource_cycle
 from s3.utils.connector import get_endpoint, get_s3_client
 import os
 from multiprocessing import Pool, cpu_count
@@ -53,18 +53,6 @@ def put_random_object_tags(bucket_name, keys):
         'k3': 'v3',
         'k4': 'v4'
     }
-    # pool = Pool(processes=cpu_count() - 1)
-    # pool = ThreadPool(len(keys))
-    # arg_list = []
-    # for key in keys:
-    #     print("working on bucket - {}, key - {}".format(bucket_name, key))
-    #     tag_key = random.choice(list(tags.keys()))
-    #     tag_val = tags[tag_key]
-    #     arg = (bucket_name, key, tag_key, tag_val)
-    #     arg_list.append(arg)
-    # pool.map(put_tag, arg_list)
-    # pool.close()
-    # pool.join()
     if len(keys) < 1:
         print("Nothing to run for bucket - {}".format(bucket_name))
         return False
@@ -85,3 +73,18 @@ def put_random_object_tags(bucket_name, keys):
             else:
                 print("Tag is placed - {}".format(key))
 
+def get_s3_bucket_obj(bucket_name, resource=None):
+    if not resource:
+        resource_cycle = get_resource_cycle()
+        resource = next(resource_cycle)
+    bucket = resource.Bucket(bucket_name)
+    return bucket
+
+if __name__ == '__main__':
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33",)
+    resource_cycle = get_resource_cycle()
+    resource = next(resource_cycle)
+    bucket = get_s3_bucket_obj("LCMTestBucket_Object_6", resource=resource)
+    for object in bucket.objects.all():
+        obj = resource.Object(object.bucket_name, object.key)
+        print(obj)
