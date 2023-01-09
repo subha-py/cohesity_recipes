@@ -245,7 +245,7 @@ def pause_protection_job(pg_name):
     if response.status_code == 204:
         print("Successfully paused pg - {}".format(pg_name))
     else:
-        print("pausing pg is unsuccessful - {}".format(pg_name))
+        print("pausing pg is unsuccessful - {} - on ip - {}".format(pg_name, ip))
 
 def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread_num=None):
     def cancel_pending_runs_of_pg(pg, delete_pg, pause):
@@ -311,11 +311,17 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
             print("deleted protection group - {}".format(pg))
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182",password='admin')
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.199.77")
     # pause_protection_job('subha_LCMTestBucket_Object_1')
     pgs = get_all_cluster_protection_jobs()
     pg_name_list = []
     for pg in pgs:
-        if "LCM" in pg['name']:
+        if "subha_aktest" in pg['name']:
             pg_name_list.append(pg['name'])
-    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False)
+    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=True, pause=True)
+    # client_cycle = get_client_cycle()
+    # buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Object")
+    # random.shuffle(buckets)
+    # for bucket in buckets[:4]:
+    #     run_bucket_protection(bucket)
+

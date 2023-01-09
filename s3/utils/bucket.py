@@ -8,7 +8,7 @@ from files.fio import get_fio_files
 from multiprocessing import Pool, cpu_count
 from s3.utils.objects import put_random_object_tags, get_random_object_keys
 from s3.utils.connector import get_s3_client, get_endpoint
-from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
+from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle, get_resource_cycle
 import shutil
 def get_buckets_from_prefix(client, prefix, count=0):
     """
@@ -196,9 +196,30 @@ def overwrite_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFi
         print(f"file - {file} is sucessfully overwritten to - {bucket_name}:{remote_file_path}")
         put_random_object_tags(bucket_name, [remote_file_path])
 
-# def put_acl(bucket_name, client):
-#     print("working on bucket - {}, key - {}".format(bucket_name, key))
-#     ips = os.environ.get("node_ips").split(",")
-#     ip = random.choice(ips)
-#     client = get_s3_client(get_endpoint(ip), os.environ.get("s3AccessKeyId"), os.environ.get("s3SecretKey"))
-#     client.put
+def get_s3_bucket_obj(bucket_name, resource=None):
+    if not resource:
+        resource_cycle = get_resource_cycle()
+        resource = next(resource_cycle)
+    bucket = resource.Bucket(bucket_name)
+    return bucket
+
+def list_multipart_upload(bucket, client=None):
+    if not client:
+        client_cycle = get_client_cycle()
+        client = next(client_cycle)
+    res = client.list_multipart_uploads(Bucket=bucket)
+    return res
+
+def get_bucket_objs(bucket_name):
+    resource_cycle = get_resource_cycle()
+    resource = next(resource_cycle)
+    bucket = get_s3_bucket_obj(bucket_name=bucket_name, resource=resource)
+    return bucket.objects.all()
+
+
+
+if __name__ == '__main__':
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33",)
+    client_cycle = get_client_cycle()
+    buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Object_6")
+    bucket = get_s3_bucket_obj(bucket_name=buckets[0])

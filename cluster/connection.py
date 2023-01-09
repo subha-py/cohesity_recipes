@@ -82,7 +82,7 @@ def get_resource_cycle():
 
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33",)
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182",)
     cycle = get_resource_cycle()
     resource = next(cycle)
     object = resource.Object("LCMTestBucket_Hierarchical_0","zytfuHYk/9.WWhUlN4ODfkOAOsn.rnd")
