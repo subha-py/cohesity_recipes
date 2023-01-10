@@ -1,6 +1,3 @@
-import sys
-sys.path.extend(['/home/cohesity/PycharmProjects/cohesity_recipes'])
-
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import requests
 import urllib3
@@ -12,7 +9,7 @@ import os
 import time
 from itertools import cycle
 import random
-from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle
+from cluster.connection import setup_cluster_automation_variables_in_environment, get_headers
 from multiprocessing import Pool, cpu_count
 from s3.utils.bucket import (
     get_buckets_from_prefix,
@@ -23,12 +20,10 @@ def get_bucket_info(bucket_name):
     # todo clean up headers with a method
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     response = requests.request("GET",
                                 "https://{}/irisservices/api/v1/public/views?viewNames={}".format(cluster_ip,
                                                                                                   bucket_name),
-                                verify=False, headers=headers)
+                                verify=False, headers=get_headers())
     if response.status_code == 200:
         return response.json()['views'][0]
 
@@ -36,12 +31,10 @@ def get_protection_info(protection_name):
     # todo clean up headers with a method
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     response = requests.request("GET",
                                 "https://{}/irisservices/api/v1/public/protectionJobs?names={}".format(cluster_ip,
                                                                                                   protection_name),
-                                verify=False, headers=headers)
+                                verify=False, headers=get_headers())
     if response.status_code == 200:
         res = response.json()
         if res:
@@ -55,32 +48,26 @@ def get_view_box_info(viewbox_name):
     # todo clean up headers with a method
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     response = requests.request("GET",
                                 "https://{}/irisservices/api/v1/public/viewBoxes?names={}".format(cluster_ip,
                                                                                                   viewbox_name),
-                                verify=False, headers=headers)
+                                verify=False, headers=get_headers())
     if response.status_code == 200:
         return response.json()[0]
 def get_policy_info(policy_name):
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     # todo use params
     response = requests.request("GET",
                                 "https://{}/irisservices/api/v1/public/protectionPolicies?names={}&environments=kView".format(
                                     cluster_ip, policy_name),
-                                verify=False, headers=headers)
+                                verify=False, headers=get_headers())
     if response.status_code == 200:
         return response.json()[0]
 
 def process_protection_request(bucket_name, ip, policy_id, effective_now, protection_group_prefix = "s3-test-",
                                force=False):
     try:
-        headers = {'Content-Type': "application/json", 'accept': "application/json"}
-        headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
         bucket_info = get_bucket_info(bucket_name)
         if not force and bucket_info.get('viewProtection'):
             print("bucket: {} is already protected".format(bucket_name))
@@ -123,7 +110,7 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
         response = requests.request("POST",
                                     "https://{}/irisservices/api/v1/public/protectionJobs".format(ip),
                                     verify=False,
-                                    headers=headers, json=data)
+                                    headers=get_headers(), json=data)
 
         if response.status_code == 201:
             print("successfully protection group for {}- {}".format(pg_name, bucket_name))
@@ -143,12 +130,10 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
 def get_all_cluster_protection_jobs():
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     response = requests.request("GET",
                                 "https://{}/irisservices/api/v1/public/protectionJobs".format(
                                     ip), verify=False,
-                                headers=headers)
+                                headers=get_headers())
     return response.json()
 def delete_protection_group(pg_name):
     info = get_protection_info(pg_name)
@@ -157,12 +142,10 @@ def delete_protection_group(pg_name):
     body = {
         "deleteSnapshots": True
     }
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     response = requests.request("DELETE",
                                 "https://{}/irisservices/api/v1/public/protectionJobs/{}".format(
                                     ip, info['id']), verify=False,
-                                headers=headers, json=body)
+                                headers=get_headers(), json=body)
     if response.status_code == 204:
         print("deletion of protection group - {} is successful".format(pg_name))
     else:
@@ -187,15 +170,13 @@ def run_protection_group(protection_name=None, protection_id=None):
         protection_id = res['id']
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     data = {
         "runType": "kRegular"
     }
     response = requests.request("POST",
                                 "https://{}/irisservices/api/v1/public/protectionJobs/run/{}".format(
                                     ip, protection_id), verify=False,
-                                headers=headers, json=data)
+                                headers=get_headers(), json=data)
     if response.status_code == 204:
         print("Successfully started run for protection group - {}".format(protection_id))
         return True
@@ -226,8 +207,6 @@ def create_protection(bucket_list, policy_id=None, policy_id_list=None, effectiv
     # pool.join()
 
 def pause_protection_job(pg_name):
-    headers = {'Content-Type': "application/json", 'accept': "application/json"}
-    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
     info = get_protection_info(pg_name)
@@ -241,7 +220,7 @@ def pause_protection_job(pg_name):
                                 "https://{}/irisservices/api/v1/public/protectionJobState/{}".format(
                                     ip, info['id']),
                                 verify=False,
-                                headers=headers, json=data)
+                                headers=get_headers(), json=data)
     if response.status_code == 204:
         print("Successfully paused pg - {}".format(pg_name))
     else:
@@ -258,12 +237,10 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
         id = info['id']
         ips = os.environ.get("node_ips").split(",")
         ip = random.choice(ips)
-        headers = {'Content-Type': "application/json", 'accept': "application/json"}
-        headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
         response = requests.request("GET",
                                     "https://{}/irisservices/api/v1/public/protectionRuns?jobId={}".format(
                                         ip, id), verify=False,
-                                    headers=headers)
+                                    headers=get_headers())
 
         if response.status_code != 200:
             print("Failed to get runs for pg - {}".format(pg))
@@ -283,7 +260,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
                                                         "https://{}/irisservices/api/v1/public/protectionRuns/cancel/{}".format(
                                                             ip, id),
                                                         verify=False,
-                                                        headers=headers, json=data)
+                                                        headers=get_headers(), json=data)
                             if response.status_code == 204:
                                 print("task - data - {} is successfully cancelled - {}".format(data, pg))
 

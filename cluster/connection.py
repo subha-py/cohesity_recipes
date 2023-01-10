@@ -80,10 +80,25 @@ def get_resource_cycle():
             client_list.append(client)
     return cycle(client_list)
 
+def get_base_url():
+    ips = os.environ.get("node_ips").split(",")
+    ip = random.choice(ips)
+    # ip = "10.14.7.5" # todo remove me
+    return "https://{ip}/irisservices/api/v1/public".format(ip=ip)
+def get_headers():
+    headers = {'Content-Type': "application/json", 'accept': "application/json"}
+    if os.environ.get('accessToken'):
+        headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
+    return headers
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.29.182",)
-    cycle = get_resource_cycle()
-    resource = next(cycle)
-    object = resource.Object("LCMTestBucket_Hierarchical_0","zytfuHYk/9.WWhUlN4ODfkOAOsn.rnd")
-    print("Object expiration - {}".format(object.expiration))
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.5",)
+    ip = random.choice(os.environ.get("node_ips").split(","))
+    headers = {'Content-Type': "application/json", 'accept': "application/json"}
+    headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
+    response = requests.request("GET", "https://10.14.7.5/irisservices/api/v1/public/protectionSources/objects",verify=False,headers=headers)
+    if response.status_code == 200:
+        response = response.json()
+    import json
+    with open('/home/cohesity/dump2.json', 'w') as fh:
+        json.dump(response, fh)
