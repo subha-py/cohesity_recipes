@@ -40,7 +40,7 @@ def create_application(app_name, vm_list, site_name="st-site-con-tx"):
         data["virtualMachineParams"] = {"protectionGroupId": protection_id}
         return data
     ip = os.environ.get('ip')
-    site_info = get_sites(site_name)
+    site_info = get_sites(site_name)[0]
     if not site_info:
         print("Unsuccessful to get site info")
         return
