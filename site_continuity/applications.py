@@ -112,6 +112,7 @@ def delete_application(app_name):
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
+    setup_cluster_automation_variables_in_environment('10.14.7.5')
     vm_list = generate_vm_names(count=6, start_index=63,prefix="VMST10")
-    res = create_application("auto-test-apps", vm_list=vm_list)
+    res = create_application("auto-test-apps", vm_list=['VMST1068'])
     print(res)
