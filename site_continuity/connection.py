@@ -1,7 +1,7 @@
 import requests
 import os
 
-def get_headers(api_key="dd5e7e8d-9245-4d61-6ab6-c23913c85dd8"):
+def get_headers(api_key="a0ed756d-e490-46fe-7fae-bbfd3dba48fd"):
     headers = {'Content-Type': "application/json", 'accept': "application/json"}
     if not api_key and os.environ.get("sitecon_apikey"):
         headers['apiKey'] = os.environ.get("sitecon_apikey") #todo: get api key from url, this is not working
