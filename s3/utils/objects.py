@@ -81,5 +81,5 @@ def get_object_info(bucket_name, key, resource=None):
 
 if __name__ == '__main__':
     setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33")
-    res = get_object_info('LCMTestBucket_Random_6','(7WoPzIU/1.Zlnl3qxwS9cHVcAq.rnd')
+    res = get_object_info('LCMTestBucket_Object_6','(((bWF61/1.6zvKP8s35cME(HTf.rnd')
     print(res)
