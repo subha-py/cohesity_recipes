@@ -9,16 +9,15 @@ from site_continuity.sites import get_sites
 
 def get_applications(name=None):
     ip = os.environ.get('ip')
+    params = None
+    if name is not None:
+        params = {'names':name}
     response = requests.request("GET", "{base_url}/applications".format(base_url=get_base_url(ip)), verify=False,
-                                headers=get_headers())
+                                headers=get_headers(), params=params)
     if response.status_code == 200:
         response = response.json()
         apps = response.get('applications')
-        if apps and name is not None:
-            for app in apps:
-                if app.get('name') == name:
-                    return app
-        return response
+        return apps
     else:
         print("Unsuccessful to get applications info - {}".format(response.status_code))
         return None
@@ -98,11 +97,21 @@ def create_application(app_name, vm_list, site_name="st-site-con-tx"):
         ))
         return response
 
+def delete_application(app_name):
+    app_info = get_applications(app_name)[0]
+    response = requests.request("DELETE", "{base_url}/applications/{app_id}".format(base_url=get_base_url(ip),
+                                                                                    app_id=app_info.get("id")),
+                                verify=False,
+                                headers=get_headers())
+    if response.status_code == 204:
+        print("App - {} is successfully deleted".format(app_name))
+    else:
+        print("Unable to delete app - {}".format(app_name))
+
 
 if __name__ == '__main__':
     ip = 'helios-test1.cohesitycloud.co'
     set_environ_variables({'ip': ip})
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.5")
-    vmlist = generate_vm_names(prefix="VMST10", count=6, start_index=63)
-    res = create_application('auto-test-apps', vm_list=vmlist)
+    # res = get_applications(name="auto-test-apps")
+    res = delete_application("auto-test-apps")
     print(res)
