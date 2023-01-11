@@ -61,19 +61,6 @@ def create_application(app_name, vm_list, site_name="st-site-con-tx"):
             print("%r generated an exception: %s" % (vm, exc))
         else:
             print("got object param result of vm {}".format(vm))
-    # for vm in vm_list: #todo add multithreading here
-    #     data = {"type": "virtualMachine"}
-    #     vm_info = get_protected_vm_info(vm)
-    #     if vm_info:
-    #         data["id"] = vm_info.get("id")
-    #     else:
-    #         print("could not add vm - {vm_name}".format(vm_name=vm))
-    #     res = get_vm_protection_info(vm)
-    #     policy_id = res.get("policyId")
-    #     policy_id = policy_id.rsplit(":", maxsplit=1)[0]
-    #     protection_id = "{policy_id}:{protection_id}".format(policy_id=policy_id, protection_id=res['id'])
-    #     data["virtualMachineParams"] = {"protectionGroupId":protection_id}
-    #     objectParams.append(data)
 
     data = {
     "name": app_name,
