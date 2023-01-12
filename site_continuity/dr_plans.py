@@ -47,7 +47,31 @@ def create_dr_plan(name, primary_site="st-site-con-tx", secondary_site="st-site-
                     'vmwareParams': {'sourceType': 'vCenter',
                                     'vCenterParams': {
                                         'objectId': 1, #todo get this info dynamically
-                                        'resourceProfiles': []
+                                        'resourceProfiles': [
+                                            {
+                                                'defaultResourceSet': {
+                                                    'computeConfig': {
+                                                        'clusterId': 16016,
+                                                        'clusterMoRef': 'domain-c140217',
+                                                        'dataCenterId': 6,
+                                                        'dataCenterMoRef': 'datacenter-13175',
+                                                        'dataStoreId': 183,
+                                                        'dataStoreMoRef': 'datastore-13196',
+                                                        'networkPortGroupId': 14676,
+                                                        'networkPortGroupMoRef': 'network-13181',
+                                                        'resourcePoolId': 16021,
+                                                        'resourcePoolMoRef': 'resgroup-140218'},
+                                                    'name': '{name}-default-resource-set'.format(name=name)},
+                                                'ipConfig': {
+                                                    'configurationType': 'DHCP',
+                                                    'dhcpConfig': {
+                                                        'dnsServers': [
+                                                            '10.2.38.16'],
+                                                        'dnsSuffixes': [
+                                                            'qa01.eng.cohesity.com']}},
+                                                'name': '{name}-profile'.format(name=name)
+                                                }
+                                            ]
                                         }
                                     }
                 }
@@ -86,5 +110,6 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     res = delete_dr_plan("auto-dr-plan")
-    res = create_dr_plan("auto-dr-plan", app_name='auto-test-apps')
+    res = create_dr_plan(app_name="auto-test-apps", name="auto-dr-plan")
+    res = res.json()
     print(res)
