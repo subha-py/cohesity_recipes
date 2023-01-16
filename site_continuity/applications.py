@@ -70,7 +70,7 @@ def create_application(app_name, vm_list, site_name="st-site-con-tx"):
             "vmwareParams": {
                 "sourceType": "vCenter",
                 "vCenterParams": {
-                    "objectId": 1  # todo get dynamically
+                    "objectId": 17704  # todo get dynamically
                 }
             }
         },
@@ -108,11 +108,20 @@ def delete_application(app_name):
     else:
         print("Unable to delete app - {}".format(app_name))
 
+def delete_all():
+    apps = get_applications()
+    for app in apps:
+        delete_application(app.get('name'))
 
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    vm_list = generate_vm_names(count=6, start_index=63,prefix="VMST10")
-    res = create_application("auto-test-apps", vm_list=['VMST1068'])
-    print(res)
+    start_index = 8248
+    vm_count = 5
+    app_count = 50
+    while app_count > 0:
+        vm_list = generate_vm_names(count=vm_count, start_index=start_index,prefix="VMST")
+        res = create_application('profile_1_{}-{}'.format(vm_list[0], vm_list[-1]), vm_list)
+        start_index += 5
+        app_count -= 1

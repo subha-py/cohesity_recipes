@@ -106,10 +106,11 @@ def delete_dr_plan(dr_plan_name):
         print("Unable to delete app - {}".format(dr_plan_name))
         return response
 
+def delete_all():
+    dr_plans = get_dr_plans()
+    for dr_plan in dr_plans:
+        delete_dr_plan(dr_plan.get('name'))
+
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
-    res = delete_dr_plan("auto-dr-plan")
-    res = create_dr_plan(app_name="auto-test-apps", name="auto-dr-plan")
-    res = res.json()
-    print(res)
