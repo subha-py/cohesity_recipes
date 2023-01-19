@@ -34,7 +34,7 @@ def create_dr_plan(name, primary_site="st-site-con-tx", secondary_site="st-site-
                     'environment': 'vmware',
                     'vmwareParams': {'sourceType': 'vCenter',
                                     'vCenterParams': {
-                                        'objectId': 1, #todo get this info dynamically
+                                        'objectId': 17704, #todo get this info dynamically
                                         'resourceProfiles': []
                                         }
                                     }
@@ -46,21 +46,21 @@ def create_dr_plan(name, primary_site="st-site-con-tx", secondary_site="st-site-
                     'environment': 'vmware',
                     'vmwareParams': {'sourceType': 'vCenter',
                                     'vCenterParams': {
-                                        'objectId': 1, #todo get this info dynamically
+                                        'objectId': 17704, #todo get this info dynamically
                                         'resourceProfiles': [
                                             {
                                                 'defaultResourceSet': {
                                                     'computeConfig': {
-                                                        'clusterId': 16016,
-                                                        'clusterMoRef': 'domain-c140217',
-                                                        'dataCenterId': 6,
-                                                        'dataCenterMoRef': 'datacenter-13175',
-                                                        'dataStoreId': 183,
-                                                        'dataStoreMoRef': 'datastore-13196',
-                                                        'networkPortGroupId': 14676,
-                                                        'networkPortGroupMoRef': 'network-13181',
-                                                        'resourcePoolId': 16021,
-                                                        'resourcePoolMoRef': 'resgroup-140218'},
+                                                              'clusterId': 17710,
+                                                              'clusterMoRef': 'domain-c9202',
+                                                              'dataCenterId': 16207,
+                                                              'dataCenterMoRef': 'datacenter-8647',
+                                                              'dataStoreId': 16215,
+                                                              'dataStoreMoRef': 'datastore-8658',
+                                                              'networkPortGroupId': 17481,
+                                                              'networkPortGroupMoRef': 'network-8661',
+                                                              'resourcePoolId': 17711,
+                                                              'resourcePoolMoRef': 'resgroup-9203'},
                                                     'name': '{name}-default-resource-set'.format(name=name)},
                                                 'ipConfig': {
                                                     'configurationType': 'DHCP',
@@ -111,6 +111,25 @@ def delete_all():
     for dr_plan in dr_plans:
         delete_dr_plan(dr_plan.get('name'))
 
+def activate(name):
+    dr_plan_info = get_dr_plans(name)[0]
+    data = {'action': 'Activate'}
+    response = requests.request("POST", "{base_url}/dr-plans/{plan_id}/actions".format(base_url=get_base_url(ip),
+                                                                                       plan_id=dr_plan_info.get('id')),
+                                verify=False,
+                                headers=get_headers(), json=data)
+    if response.status_code == 201:
+        print('{name} is successfully activated'.format(name=name))
+    else:
+        response = response.json()
+        print('unsuccessful to activate {name}, due to error - {error}'.format(name=name,
+                                                                               error=response.get('errorMessage')))
+
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
+    apps = get_applications()
+    for app in apps:
+        app_name = app.get('name')
+        if 'profile_1' in app_name:
+            create_dr_plan(name="{}-dr_plan".format(app_name),app_name=app_name)
