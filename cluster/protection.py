@@ -303,5 +303,4 @@ if __name__ == '__main__':
     #     run_bucket_protection(bucket)
 
     setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.5")
-    info = get_protection_info('profile_1_pg')
-    print(info)
+    cancel_pending_protection_job_runs(['profile_1_pg'])

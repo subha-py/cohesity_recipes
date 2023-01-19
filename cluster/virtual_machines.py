@@ -7,7 +7,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_base_url, get_headers
 from cluster.protection import get_protection_info
 
-def get_protected_vm_info(vm_name, vcentre_id=17704): #todo take vcentre dynamically
+def get_protected_vm_info(vm_name, vcentre_id=20241): #todo take vcentre dynamically
     response = requests.request("GET", "{base_url}/protectionSources/virtualMachines?vCenterId={vcentre_id}&names={vm_name}&protected=true".
                                 format(base_url=get_base_url(), vm_name=vm_name, vcentre_id=vcentre_id),
                                 verify=False, headers=get_headers())

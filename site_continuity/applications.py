@@ -1,5 +1,3 @@
-import sys
-sys.path.extend()
 import os
 import concurrent.futures
 import requests
@@ -119,11 +117,14 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    start_index = 8248
-    vm_count = 5
-    app_count = 50
-    while app_count > 0:
-        vm_list = generate_vm_names(count=vm_count, start_index=start_index,prefix="VMST")
-        res = create_application('profile_1_{}-{}'.format(vm_list[0], vm_list[-1]), vm_list)
-        start_index += 5
-        app_count -= 1
+    create_application('static-auto',['stlincos-006','stlincos-005'])
+    # res = get_protected_vm_info('stlincos-006')
+    # print(res)
+    # start_index = 8248
+    # vm_count = 5
+    # app_count = 50
+    # while app_count > 0:
+    #     vm_list = generate_vm_names(count=vm_count, start_index=start_index,prefix="VMST")
+    #     res = create_application('profile_1_{}-{}'.format(vm_list[0], vm_list[-1]), vm_list)
+    #     start_index += 5
+    #     app_count -= 1
