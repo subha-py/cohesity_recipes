@@ -3,7 +3,7 @@ import concurrent.futures
 import requests
 
 from cluster.connection import setup_cluster_automation_variables_in_environment
-from cluster.virtual_machines import get_protected_vm_info, get_vm_protection_info, generate_vm_names
+from cluster.virtual_machines import get_protected_vm_info, get_vm_protection_info, generate_vm_names, get_vc_id
 from site_continuity.connection import get_base_url, get_headers, set_environ_variables
 from site_continuity.sites import get_sites
 
@@ -23,11 +23,11 @@ def get_applications(name=None):
         return None
 
 
-def create_application(app_name, vm_list, site_name="st-site-con-tx"):
-    def get_object_param_from_vm(vm):
+def create_application(app_name, vm_list, source_vc, site_name="st-site-con-tx"):
+    def get_object_param_from_vm(vm, vc_id):
         print("getting object param of vm - {}".format(vm))
         data = {"type": "virtualMachine"}
-        vm_info = get_protected_vm_info(vm)
+        vm_info = get_protected_vm_info(vm, vc_id)
         if vm_info:
             data["id"] = vm_info.get("id")
         else:
@@ -41,6 +41,7 @@ def create_application(app_name, vm_list, site_name="st-site-con-tx"):
         return data
     ip = os.environ.get('ip')
     site_info = get_sites(site_name)[0]
+    vc_id = get_vc_id(source_vc)
     if not site_info:
         print("Unsuccessful to get site info")
         return
@@ -48,7 +49,7 @@ def create_application(app_name, vm_list, site_name="st-site-con-tx"):
     future_to_vm = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(vm_list)) as executor:
         for vm in vm_list:
-            arg = (vm, )
+            arg = (vm, vc_id)
             future_to_vm[executor.submit(get_object_param_from_vm, *arg)] = vm
     for future in concurrent.futures.as_completed(future_to_vm):
         vm = future_to_vm[future]
@@ -70,7 +71,7 @@ def create_application(app_name, vm_list, site_name="st-site-con-tx"):
             "vmwareParams": {
                 "sourceType": "vCenter",
                 "vCenterParams": {
-                    "objectId": 17704  # todo get dynamically
+                    "objectId": vc_id
                 }
             }
         },
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    create_application('static-auto',['stlincos-006','stlincos-005'])
+    create_application('static-auto',['stlincos-006','stlincos-005'], source_vc='10.14.22.105')
     # res = get_protected_vm_info('stlincos-006')
     # print(res)
     # start_index = 8248

@@ -10,8 +10,11 @@ def get_headers(api_key="a0ed756d-e490-46fe-7fae-bbfd3dba48fd"):
         headers['apiKey'] = api_key
     return headers
 
+
+def get_helios_url(ip):
+    return "https://{ip}/v2/mcm".format(ip=ip)
 def get_base_url(ip):
-    return "https://{ip}/v2/mcm/site-continuity/2.0".format(ip=ip)
+    return "{helios_url}/site-continuity/2.0".format(helios_url=get_helios_url(ip))
 
 def set_environ_variables(dictionary):
     for key, value in dictionary.items():

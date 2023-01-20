@@ -1,12 +1,14 @@
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import requests
 import urllib3
+import os
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_base_url, get_headers
 from cluster.protection import get_protection_info
 
+from site_continuity.connection import get_helios_url, set_environ_variables, get_headers as site_con_headers
 def get_protected_vm_info(vm_name, vcentre_id=20241): #todo take vcentre dynamically
     response = requests.request("GET", "{base_url}/protectionSources/virtualMachines?vCenterId={vcentre_id}&names={vm_name}&protected=true".
                                 format(base_url=get_base_url(), vm_name=vm_name, vcentre_id=vcentre_id),
@@ -39,6 +41,22 @@ def generate_vm_names(prefix, count, start_index):
         names.append("{prefix}{val}".format(prefix=prefix,val=val))
     return names
 
+def get_vc_id(name):
+    # https://helios-sandbox.cohesity.com/v2/mcm/data-protect/sources?excludeProtectionStats=true&environments=kVMware
+    ip = os.environ.get('ip')
+    response = requests.request("GET",
+                                "{helios_url}/data-protect/sources?vsources?excludeProtectionStats=true&environments=kVMware".
+                                format(helios_url=get_helios_url(ip)),
+                                verify=False, headers=site_con_headers())
+
+    response = response.json()
+    if response:
+        for source in response.get('sources'):
+            if name in source.get('name'):
+                return source['sourceInfoList'][0]['sourceId']
+
 if __name__ == '__main__':
-    vm_names = generate_vm_names(prefix="VMST10", count=3, start_index=66)
-    print(vm_names)
+    ip = 'helios-sandbox.cohesity.com'
+    set_environ_variables({'ip': ip})
+    res = get_vc_id('10.14.22.105')
+    print(res)

@@ -80,11 +80,12 @@ def get_resource_cycle():
             client_list.append(client)
     return cycle(client_list)
 
-def get_base_url():
+def get_base_url(version=1):
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
-    # ip = "10.14.7.5" # todo remove me
-    return "https://{ip}/irisservices/api/v1/public".format(ip=ip)
+    if version == 1:
+        return "https://{ip}/irisservices/api/v1/public".format(ip=ip)
+
 def get_headers():
     headers = {'Content-Type': "application/json", 'accept': "application/json"}
     if os.environ.get('accessToken'):
