@@ -9,17 +9,18 @@ from cluster.connection import setup_cluster_automation_variables_in_environment
 from cluster.protection import get_protection_info
 
 from site_continuity.connection import get_helios_url, set_environ_variables, get_headers as site_con_headers
-def get_protected_vm_info(vm_name, vcentre_id=20241): #todo take vcentre dynamically
+def get_protected_vm_info(vm_name, source_vc):
+    source_vc_id = get_vc_id(source_vc)
     response = requests.request("GET", "{base_url}/protectionSources/virtualMachines?vCenterId={vcentre_id}&names={vm_name}&protected=true".
-                                format(base_url=get_base_url(), vm_name=vm_name, vcentre_id=vcentre_id),
+                                format(base_url=get_base_url(), vm_name=vm_name, vcentre_id=source_vc_id),
                                 verify=False, headers=get_headers())
 
     response = response.json()
     if response:
         return response[0]
 
-def get_vm_protection_info(vm_name):
-    vm_info = get_protected_vm_info(vm_name)
+def get_vm_protection_info(vm_name, source_vc):
+    vm_info = get_protected_vm_info(vm_name, source_vc)
     if vm_info:
         vm_id = vm_info.get("id")
     else:
