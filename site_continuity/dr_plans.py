@@ -1,9 +1,9 @@
 import os
-
+import time
 import requests
 from site_continuity.connection import get_base_url, get_headers, set_environ_variables
 from site_continuity.sites import get_sites
-from site_continuity.applications import get_applications
+from site_continuity.applications import get_applications, get_replicated_snapshots
 from cluster.connection import \
     (get_base_url as cohesity_base_url,
      get_headers as get_cohesity_headers,
@@ -33,24 +33,24 @@ def get_dhcp_vmware_params(dr_plan_name, dest_vc):
                                             {
                                                 'defaultResourceSet': {
                                                     'computeConfig': {
-                                                              'clusterId': 17710, #todo take this dynamically
-                                                              'clusterMoRef': 'domain-c9202', #todo take this dynamically
-                                                              'dataCenterId': 16207,  #todo take this dynamically
-                                                              'dataCenterMoRef': 'datacenter-8647', #todo take this dynamically
-                                                              'dataStoreId': 16215, #todo take this dynamically
-                                                              'dataStoreMoRef': 'datastore-8658', #todo take this dynamically
-                                                              'networkPortGroupId': 17481, #todo take this dynamically
-                                                              'networkPortGroupMoRef': 'network-8661', #todo take this dynamically
-                                                              'resourcePoolId': 17711, #todo take this dynamically
-                                                              'resourcePoolMoRef': 'resgroup-9203'}, #todo take this dynamically
+                                                                      'clusterId': 27873,
+                                                                      'clusterMoRef': 'domain-c158973',
+                                                                      'dataCenterId': 8,
+                                                                      'dataCenterMoRef': 'datacenter-18',
+                                                                      'dataStoreId': 4555,
+                                                                      'dataStoreMoRef': 'datastore-1042',
+                                                                      'networkPortGroupId': 15591,
+                                                                      'networkPortGroupMoRef': 'network-9886',
+                                                                      'resourcePoolId': 27874,
+                                                                      'resourcePoolMoRef': 'resgroup-158974'}, #todo take this dynamically
                                                     'name': '{name}-default-resource-set'.format(name=dr_plan_name)},
                                                 'ipConfig': {
                                                     'configurationType': 'DHCP',
                                                     'dhcpConfig': {
                                                         'dnsServers': [
-                                                            '10.2.38.16'],
+                                                            '10.18.32.145'],
                                                         'dnsSuffixes': [
-                                                            'qa01.eng.cohesity.com']}},
+                                                            'eng.cohesity.com']}},
                                                 'name': '{name}-profile'.format(name=dr_plan_name)
                                                 }
                                             ]
@@ -117,15 +117,14 @@ def get_static_vmware_params(app_info, source_vc, dest_vc):
                                              'networkMappingConfig': None}},
                                      'name': 'static_res'}]}}
     return adict
-def create_dr_plan(name, app_name,source_vc, dest_vc, primary_site="st-site-con-tx", secondary_site="st-site-con-rx",
-                    description=None, rpo=None, dr_type='dhcp'):
+def create_dr_plan(name, app_info,source_vc, dest_vc, primary_site="st-site-con-tx", secondary_site="st-site-con-rx",
+                    description=None, rpo=None, dr_type='dhcp', activate_dr=False):
     primary_site_info = get_sites(primary_site)[0]
     secondary_site_info = get_sites(secondary_site)[0]
     if not description:
         description = name
     if not rpo:
-        rpo = {'frequency': 4, 'unit': 'Hours'}
-    app_info = get_applications(app_name)[0]
+        rpo = {'frequency': 6, 'unit': 'Hours'}
     app_id = app_info.get('id')
     data = {
         "name": name,
@@ -161,23 +160,30 @@ def create_dr_plan(name, app_name,source_vc, dest_vc, primary_site="st-site-con-
         print("Successfully created dr_plan named - {dr_name}".format(
             dr_name=name
         ))
+        if activate_dr:
+            time.sleep(30)
+            dr_info = response.json()
+            activate(dr_plan_info=dr_info)
         return response
     else:
-        print("Unsuccessful to create dr_plan named - {dr_name}".format(
-            dr_name=name
+        response = response.json()
+        print("Unsuccessful to create dr_plan named - {dr_name} due to error - {error}".format(
+            dr_name=name,
+            error=response.get('errorMessage')
         ))
         return response
 
-def delete_dr_plan(dr_plan_name):
-    dr_id = get_dr_plans(dr_plan_name)[0]
+def delete_dr_plan(dr_plan_name=None, dr_id=None):
+    if not dr_id:
+        dr_id = get_dr_plans(dr_plan_name)[0]
     response = requests.request("DELETE", "{base_url}/dr-plans/{dr_id}".format(base_url=get_base_url(ip),
-                                dr_id=dr_id.get("id")),
+                                dr_id=dr_id),
                                 verify=False,
                                 headers=get_headers())
     if response.status_code == 204:
-        print("dr_plan - {} is successfully deleted".format(dr_plan_name))
+        print("dr_plan - {} is successfully deleted".format(dr_id))
     else:
-        print("Unable to delete app - {}".format(dr_plan_name))
+        print("Unable to delete app - {}".format(dr_id))
         return response
 
 def delete_all():
@@ -185,25 +191,54 @@ def delete_all():
     for dr_plan in dr_plans:
         delete_dr_plan(dr_plan.get('name'))
 
-def activate(name):
-    dr_plan_info = get_dr_plans(name)[0]
+def activate(name=None, dr_plan_info=None):
+    if not  dr_plan_info:
+        dr_plan_info = get_dr_plans(name)[0]
     data = {'action': 'Activate'}
     response = requests.request("POST", "{base_url}/dr-plans/{plan_id}/actions".format(base_url=get_base_url(ip),
                                                                                        plan_id=dr_plan_info.get('id')),
                                 verify=False,
                                 headers=get_headers(), json=data)
     if response.status_code == 201:
-        print('{name} is successfully activated'.format(name=name))
+        print('{name} is successfully activated'.format(name=dr_plan_info.get('name')))
     else:
         response = response.json()
-        print('unsuccessful to activate {name}, due to error - {error}'.format(name=name,
+        print('unsuccessful to activate {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),                                                                    error=response.get('errorMessage')))
+
+
+def test_failover(dr_plan_info=None, dr_plan_name=None):
+    if not dr_plan_info:
+        dr_plan_info = get_dr_plans(name=dr_plan_name)[0]
+    vms = get_replicated_snapshots(dr_plan_info.get('appId'))
+    objectSnapshotOverrides = []
+    for vm in vms:
+        snap = {'objectId': vm.get('objectDetails').get('objectId'),
+                'snapshotId': vm.get('replicatedSnapshots')[0].get('snapshotId')}
+        objectSnapshotOverrides.append(snap)
+    data = {'action': 'TestFailover',
+            'testFailoverParams':{
+                "objectSnapshotOverrides": objectSnapshotOverrides,
+                "environment": "vmware",
+                "vmwareParams": {
+                    "performStorageVmotion": False,
+                    "resourceProfileName": dr_plan_info['drSite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0]['name']
+                }
+            }
+            }
+    response = requests.request("POST", "{base_url}/dr-plans/{plan_id}/actions".format(base_url=get_base_url(ip),
+                                                                                       plan_id=dr_plan_info.get('id')),
+                                verify=False,
+                                headers=get_headers(), json=data)
+    if response.status_code == 201:
+        print('test failover for {name} is successfully triggered'.format(name=dr_plan_info.get('name')))
+    else:
+        response = response.json()
+        print('unsuccessful to test failover for {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
                                                                                error=response.get('errorMessage')))
+
 
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    create_dr_plan('dhcp-auto',app_name='profile_1_VMST8248-VMST8252',source_vc='system-test-vc03.qa01.eng.cohesity.com',
-                   dest_vc='system-test-vc02.qa01.eng.cohesity.com')
-    create_dr_plan('static-auto', app_name='static-auto',source_vc='10.14.22.105',
-                   dest_vc='system-test-vc02.qa01.eng.cohesity.com', dr_type='static')
+    test_failover(dr_plan_name='pg2-test')

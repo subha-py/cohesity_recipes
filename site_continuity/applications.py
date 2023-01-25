@@ -3,7 +3,8 @@ import concurrent.futures
 import requests
 
 from cluster.connection import setup_cluster_automation_variables_in_environment
-from cluster.virtual_machines import get_protected_vm_info, get_vm_protection_info, generate_vm_names, get_vc_id
+from cluster.protection import get_protection_info
+from cluster.virtual_machines import get_protected_vm_info, get_vm_protection_info, get_vm_source_ids_from_pg, get_vc_id
 from site_continuity.connection import get_base_url, get_headers, set_environ_variables
 from site_continuity.sites import get_sites
 
@@ -23,20 +24,28 @@ def get_applications(name=None):
         return None
 
 
-def create_application(app_name, vm_list, source_vc, site_name="st-site-con-tx"):
-    def get_object_param_from_vm(vm, vc_id):
+def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_list=None, vm_list=None,
+                       protection_info=None):
+    def get_object_param_from_vm(vm=None, vc_id=None, vm_id=None, protection_info=None): #todo if vm_id is provided vm name is not required
+        if vm_id:
+            vm = vm_id
         print("getting object param of vm - {}".format(vm))
         data = {"type": "virtualMachine"}
-        vm_info = get_protected_vm_info(vm, vc_id)
-        if vm_info:
-            data["id"] = vm_info.get("id")
+
+        if vm_id is not None:
+            data["id"] = vm_id
         else:
-            print("could not add vm - {vm_name}".format(vm_name=vm))
-            return
-        res = get_vm_protection_info(vm)
-        policy_id = res.get("policyId")
+            vm_info = get_protected_vm_info(vm, vc_id)
+            if vm_info:
+                data["id"] = vm_info.get("id")
+            else:
+                print("could not add vm - {vm_name}".format(vm_name=vm))
+                return
+        if protection_info is not None:
+            protection_info = get_vm_protection_info(vm_id=data["id"], vc_id=vc_id)
+        policy_id = protection_info.get("policyId")
         policy_id = policy_id.rsplit(":", maxsplit=1)[0]
-        protection_id = "{policy_id}:{protection_id}".format(policy_id=policy_id, protection_id=res['id'])
+        protection_id = "{policy_id}:{protection_id}".format(policy_id=policy_id, protection_id=protection_info['id'])
         data["virtualMachineParams"] = {"protectionGroupId": protection_id}
         return data
     ip = os.environ.get('ip')
@@ -47,10 +56,19 @@ def create_application(app_name, vm_list, source_vc, site_name="st-site-con-tx")
         return
     objectParams = []
     future_to_vm = {}
+    if vm_id_list:
+        vm_list = vm_id_list
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(vm_list)) as executor:
         for vm in vm_list:
-            arg = (vm, vc_id)
-            future_to_vm[executor.submit(get_object_param_from_vm, *arg)] = vm
+            kwargs = {
+                'vc_id': vc_id,
+                'protection_info':protection_info
+            }
+            if vm_id_list:
+                kwargs['vm_id'] = vm
+            else:
+                kwargs['vm'] = vm
+            future_to_vm[executor.submit(get_object_param_from_vm, **kwargs)] = vm
     for future in concurrent.futures.as_completed(future_to_vm):
         vm = future_to_vm[future]
         try:
@@ -92,9 +110,12 @@ def create_application(app_name, vm_list, source_vc, site_name="st-site-con-tx")
         ))
         return response
     else:
-        print("Unsuccessful to create application named - {application_name} with Vms - {vm_list}".format(
+        response = response.json()
+        print("Unsuccessful to create application named - {application_name} with Vms - {vm_list} - \
+              due to error - {error}".format(
             application_name=app_name,
-            vm_list=vm_list
+            vm_list=vm_list,
+            error=response.get('errorMessage')
         ))
         return response
 
@@ -114,18 +135,30 @@ def delete_all():
     for app in apps:
         delete_application(app.get('name'))
 
+def get_replicated_snapshots(app_id):
+    ip = os.environ.get('ip')
+    response = requests.request("GET", "{base_url}/applications/{app_id}/replicatedSnapshots".format(base_url=get_base_url(ip),
+                                                                                                     app_id=app_id), verify=False,
+                                headers=get_headers())
+    if response.status_code == 200:
+        return response.json()['objectSnapshots']
+
+    else:
+        print("Unsuccessful to get applications info - {}".format(response.status_code))
+        return None
+
+
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
-    setup_cluster_automation_variables_in_environment('10.14.7.5')
-    create_application('static-auto',['stlincos-006','stlincos-005'], source_vc='10.14.22.105')
-    # res = get_protected_vm_info('stlincos-006')
-    # print(res)
-    # start_index = 8248
-    # vm_count = 5
-    # app_count = 50
-    # while app_count > 0:
-    #     vm_list = generate_vm_names(count=vm_count, start_index=start_index,prefix="VMST")
-    #     res = create_application('profile_1_{}-{}'.format(vm_list[0], vm_list[-1]), vm_list)
-    #     start_index += 5
-    #     app_count -= 1
+    # setup_cluster_automation_variables_in_environment('10.14.7.5')
+    # protection_info = get_protection_info('profile_2_pg')
+    # source_ids = protection_info['sourceIds']
+    # number_of_vms_per_app = 3
+    # for i in range(0, len(source_ids), number_of_vms_per_app):
+    #     create_application(app_name='profile_3_app_{}'.format(i+1),
+    #                        vm_id_list=source_ids[i:i+number_of_vms_per_app],
+    #                        source_vc='10.14.22.105',
+    #                        protection_info=protection_info)
+    res = get_replicated_snapshots(app_id=303)
+    print(res)

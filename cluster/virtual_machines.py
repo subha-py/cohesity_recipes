@@ -9,23 +9,23 @@ from cluster.connection import setup_cluster_automation_variables_in_environment
 from cluster.protection import get_protection_info
 
 from site_continuity.connection import get_helios_url, set_environ_variables, get_headers as site_con_headers
-def get_protected_vm_info(vm_name, source_vc):
-    source_vc_id = get_vc_id(source_vc)
+def get_protected_vm_info(vm_name, vc_id):
     response = requests.request("GET", "{base_url}/protectionSources/virtualMachines?vCenterId={vcentre_id}&names={vm_name}&protected=true".
-                                format(base_url=get_base_url(), vm_name=vm_name, vcentre_id=source_vc_id),
+                                format(base_url=get_base_url(), vm_name=vm_name, vcentre_id=vc_id),
                                 verify=False, headers=get_headers())
 
     response = response.json()
     if response:
         return response[0]
 
-def get_vm_protection_info(vm_name, source_vc):
-    vm_info = get_protected_vm_info(vm_name, source_vc)
-    if vm_info:
-        vm_id = vm_info.get("id")
-    else:
-        print("could not add vm - {vm_name}".format(vm_name=vm_name))
-        return
+def get_vm_protection_info(vm_name=None, vc_id=None, vm_id=None):
+    if vm_id is None:
+        vm_info = get_protected_vm_info(vm_name, vc_id)
+        if vm_info:
+            vm_id = vm_info.get("id")
+        else:
+            print("could not add vm - {vm_name}".format(vm_name=vm_name))
+            return
     response = requests.request("GET",
                                 "{base_url}/protectionObjects/summary?protectionSourceId={vm_id}".
                                 format(base_url=get_base_url(), vm_id=vm_id),
@@ -56,8 +56,12 @@ def get_vc_id(name):
             if name in source.get('name'):
                 return source['sourceInfoList'][0]['sourceId']
 
+def get_vm_source_ids_from_pg(pg_name):
+    return get_protection_info(pg_name)['sourceIds']
+
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
-    res = get_vc_id('10.14.22.105')
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.5")
+    res = get_protected_vm_info('sitecon-lin-001', vc_id='16201')
     print(res)
