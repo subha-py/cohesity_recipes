@@ -25,8 +25,8 @@ def get_applications(name=None):
 
 
 def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_list=None, vm_list=None,
-                       protection_info=None, script=False, delay=False):
-    def get_object_param_from_vm(vm=None, vc_id=None, vm_id=None, protection_info=None, script=False): #todo if vm_id is provided vm name is not required
+                       protection_info=None, script=False, delay=False, split_script_vms=False):
+    def get_object_param_from_vm(vm=None, vc_id=None, vm_id=None, protection_info=None, script=False):
         if vm_id:
             vm = vm_id
         print("getting object param of vm - {}".format(vm))
@@ -67,32 +67,22 @@ def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_li
         print("Unsuccessful to get site info")
         return
     objectParams = []
-    future_to_vm = {}
     if vm_id_list:
         vm_list = vm_id_list
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(vm_list)) as executor:
-        for vm in vm_list:
-            kwargs = {
-                'vc_id': vc_id,
-                'protection_info':protection_info,
-                'script':script
-            }
-            if vm_id_list:
-                kwargs['vm_id'] = vm
-            else:
-                kwargs['vm'] = vm
-            future_to_vm[executor.submit(get_object_param_from_vm, **kwargs)] = vm
-    for future in concurrent.futures.as_completed(future_to_vm):
-        vm = future_to_vm[future]
-        try:
-            res = future.result()
-            if res:
-                objectParams.append(res)
-        except Exception as exc:
-            print("%r generated an exception: %s" % (vm, exc))
+    for index, vm in enumerate(vm_list):
+        script_param = script
+        if script and index >= (len(vm_list)//2):
+            script_param = False # half of the vms should not have script
+        kwargs = {
+            'vc_id': vc_id,
+            'protection_info':protection_info,
+            'script':script_param
+        }
+        if vm_id_list:
+            kwargs['vm_id'] = vm
         else:
-            print("got object param result of vm {}".format(vm))
-
+            kwargs['vm'] = vm
+        objectParams.append(get_object_param_from_vm(**kwargs))
     data = {
     "name": app_name,
     "siteId": site_info.get('id'),  # get from get_sites("st-site-con-tx")
@@ -106,23 +96,38 @@ def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_li
                 }
             }
         },
-        "components": [
+        "components": []
+    }
+    }
+    if script and split_script_vms:
+        data['spec']['components'] = [
+            {
+                "type": "objects",
+                "objectParams": objectParams[:len(objectParams)//2]
+            }
+        ]
+        if delay:
+            delay_component = {
+                    "type": "delay",
+                    "delayParams": {
+                        "unit": "Minutes",
+                        "delay": 5
+                    }
+                }
+            data['spec']['components'].append(delay_component)
+        data['spec']['components'].append(
+            {
+                "type": "objects",
+                "objectParams": objectParams[len(objectParams) // 2:]
+            }
+        )
+    else:
+        data['spec']['components'] = [
             {
                 "type": "objects",
                 "objectParams": objectParams
             }
         ]
-    }
-    }
-    if delay:
-        delay_component = {
-                "type": "delay",
-                "delayParams": {
-                    "unit": "Minutes",
-                    "delay": 5
-                }
-            }
-        data['spec']['components'].append(delay_component)
     response = requests.request("POST", "{base_url}/applications".format(base_url=get_base_url(ip)), verify=False,
                                 headers=get_headers(),json=data)
     if response.status_code == 201:
@@ -183,10 +188,10 @@ if __name__ == '__main__':
     #                        source_vc='10.14.22.105',
     #                        protection_info=protection_info)
     # app = get_applications(name='subha-test-failover-app')[0]
-    # print(app)
-    source_ids = [24527, 24529, 24693]
+    source_ids = [24525, 24527, 24529, 24693, 24522, 24612]
     protection_info = get_protection_info('profile_2_pg')
     create_application(app_name='subha-auto-script',
                        vm_id_list=source_ids,
                        source_vc='system-test-vc02.qa01.eng.cohesity.com',
-                       protection_info=protection_info, script=True, delay=True)
+                       protection_info=protection_info,
+                       script=True, delay=True, split_script_vms=True)
