@@ -25,8 +25,8 @@ def get_applications(name=None):
 
 
 def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_list=None, vm_list=None,
-                       protection_info=None):
-    def get_object_param_from_vm(vm=None, vc_id=None, vm_id=None, protection_info=None): #todo if vm_id is provided vm name is not required
+                       protection_info=None, script=False, delay=False):
+    def get_object_param_from_vm(vm=None, vc_id=None, vm_id=None, protection_info=None, script=False): #todo if vm_id is provided vm name is not required
         if vm_id:
             vm = vm_id
         print("getting object param of vm - {}".format(vm))
@@ -47,6 +47,18 @@ def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_li
         policy_id = policy_id.rsplit(":", maxsplit=1)[0]
         protection_id = "{policy_id}:{protection_id}".format(policy_id=policy_id, protection_id=protection_info['id'])
         data["virtualMachineParams"] = {"protectionGroupId": protection_id}
+        if script:
+            script_params = {
+                "username": "root",
+                "password": "root1234",
+                "scriptExecutionPath": "/tmp",
+                "scriptParams": {
+                    "name": "scratch_2.py",
+                    "content": os.environ.get('script_content'), #todo convert file to content dynamically
+                    "arguments": ['2']
+                }
+            }
+            data["virtualMachineParams"].update(script_params)
         return data
     ip = os.environ.get('ip')
     site_info = get_sites(site_name)[0]
@@ -62,7 +74,8 @@ def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_li
         for vm in vm_list:
             kwargs = {
                 'vc_id': vc_id,
-                'protection_info':protection_info
+                'protection_info':protection_info,
+                'script':script
             }
             if vm_id_list:
                 kwargs['vm_id'] = vm
@@ -101,6 +114,15 @@ def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_li
         ]
     }
     }
+    if delay:
+        delay_component = {
+                "type": "delay",
+                "delayParams": {
+                    "unit": "Minutes",
+                    "delay": 5
+                }
+            }
+        data['spec']['components'].append(delay_component)
     response = requests.request("POST", "{base_url}/applications".format(base_url=get_base_url(ip)), verify=False,
                                 headers=get_headers(),json=data)
     if response.status_code == 201:
@@ -151,7 +173,7 @@ def get_replicated_snapshots(app_id):
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
-    # setup_cluster_automation_variables_in_environment('10.14.7.5')
+    setup_cluster_automation_variables_in_environment('10.14.7.5')
     # protection_info = get_protection_info('profile_2_pg')
     # source_ids = protection_info['sourceIds']
     # number_of_vms_per_app = 3
@@ -160,5 +182,11 @@ if __name__ == '__main__':
     #                        vm_id_list=source_ids[i:i+number_of_vms_per_app],
     #                        source_vc='10.14.22.105',
     #                        protection_info=protection_info)
-    res = get_replicated_snapshots(app_id=303)
-    print(res)
+    # app = get_applications(name='subha-test-failover-app')[0]
+    # print(app)
+    source_ids = [24527, 24529, 24693]
+    protection_info = get_protection_info('profile_2_pg')
+    create_application(app_name='subha-auto-script',
+                       vm_id_list=source_ids,
+                       source_vc='system-test-vc02.qa01.eng.cohesity.com',
+                       protection_info=protection_info, script=True, delay=True)

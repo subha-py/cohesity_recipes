@@ -288,7 +288,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
             print("deleted protection group - {}".format(pg))
 
 if __name__ == '__main__':
-    # setup_cluster_automation_variables_in_environment(cluster_ip="10.2.199.77")
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.199.77")
     # pause_protection_job('subha_LCMTestBucket_Object_1')
     # pgs = get_all_cluster_protection_jobs()
     # pg_name_list = []

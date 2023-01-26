@@ -17,6 +17,9 @@ def get_base_url(ip):
     return "{helios_url}/site-continuity/2.0".format(helios_url=get_helios_url(ip))
 
 def set_environ_variables(dictionary):
+    dictionary['script_content'] = 'aW1wb3J0IHRpbWUKaW1wb3J0IHN5cwoKaWYgbGVuKHN5cy5hcmd2KSA8IDI6CiAgICBjb3VudCA9IDEwMAp\
+                                   lbHNlOgogICAgY291bnQgPSBpbnQoc3lzLmFyZ3ZbMV0pCmZvciBpIGluIHJhbmdlKGNvdW50KToKICAgI\
+                                   HByaW50KCdjb3VudGVyIGlzIGF0IC0ge30nLmZvcm1hdChpKzEpKQogICAgdGltZS5zbGVlcCg1KQ=='
     for key, value in dictionary.items():
         os.environ.setdefault(key, value)
     return
