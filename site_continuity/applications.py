@@ -111,7 +111,7 @@ def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_li
                     "type": "delay",
                     "delayParams": {
                         "unit": "Minutes",
-                        "delay": 5
+                        "delay": 2
                     }
                 }
             data['spec']['components'].append(delay_component)
@@ -179,19 +179,20 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    # protection_info = get_protection_info('profile_2_pg')
-    # source_ids = protection_info['sourceIds']
-    # number_of_vms_per_app = 3
-    # for i in range(0, len(source_ids), number_of_vms_per_app):
-    #     create_application(app_name='profile_3_app_{}'.format(i+1),
-    #                        vm_id_list=source_ids[i:i+number_of_vms_per_app],
-    #                        source_vc='10.14.22.105',
-    #                        protection_info=protection_info)
-    # app = get_applications(name='subha-test-failover-app')[0]
-    source_ids = [24525, 24527, 24529, 24693, 24522, 24612]
+    # profile 2 apps
     protection_info = get_protection_info('profile_2_pg')
-    create_application(app_name='subha-auto-script',
-                       vm_id_list=source_ids,
-                       source_vc='system-test-vc02.qa01.eng.cohesity.com',
-                       protection_info=protection_info,
-                       script=True, delay=True, split_script_vms=True)
+    source_ids = protection_info['sourceIds']
+    number_of_vms_per_app = 6
+    for i in range(0, len(source_ids), number_of_vms_per_app):
+        create_application(app_name='profile_2_app_{}'.format(i+1),
+                           vm_id_list=source_ids[i:i+number_of_vms_per_app],
+                           source_vc='system-test-vc02.qa01.eng.cohesity.com',
+                           protection_info=protection_info,
+                           script=True, delay=True, split_script_vms=True)
+
+    # protection_info = get_protection_info('profile_2_pg')
+    # create_application(app_name='subha-auto-script',
+    #                    vm_id_list=source_ids,
+    #                    source_vc='system-test-vc02.qa01.eng.cohesity.com',
+    #                    protection_info=protection_info,
+    #                    script=True, delay=True, split_script_vms=True)

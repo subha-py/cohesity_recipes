@@ -11,6 +11,7 @@ from cluster.connection import \
      )
 from vmware.connection import find_by_moid
 from cluster.virtual_machines import get_vc_id
+import random
 def get_dr_plans(name=None):
     ip = os.environ.get('ip')
     params = None
@@ -32,18 +33,18 @@ def get_dhcp_vmware_params(dr_plan_name, dest_vc):
                                         'resourceProfiles': [
                                             {
                                                 'defaultResourceSet': {
-                                                    'computeConfig': {
-                                                                      'clusterId': 27873,
-                                                                      'clusterMoRef': 'domain-c158973',
-                                                                      'dataCenterId': 8,
-                                                                      'dataCenterMoRef': 'datacenter-18',
-                                                                      'dataStoreId': 4555,
-                                                                      'dataStoreMoRef': 'datastore-1042',
-                                                                      'networkPortGroupId': 15591,
-                                                                      'networkPortGroupMoRef': 'network-9886',
-                                                                      'resourcePoolId': 27874,
-                                                                      'resourcePoolMoRef': 'resgroup-158974'}, #todo take this dynamically
-                                                    'name': '{name}-default-resource-set'.format(name=dr_plan_name)},
+                                                          'computeConfig': {
+                                                              'clusterId': 27873,
+                                                              'clusterMoRef': 'domain-c158973',
+                                                              'dataCenterId': 8,
+                                                              'dataCenterMoRef': 'datacenter-18',
+                                                              'dataStoreId': 28040,
+                                                              'dataStoreMoRef': 'datastore-161101',
+                                                              'networkPortGroupId': 15591,
+                                                              'networkPortGroupMoRef': 'network-9886',
+                                                              'resourcePoolId': 27874,
+                                                              'resourcePoolMoRef': 'resgroup-158974'},
+                                                          'name': 'Default resource set'},
                                                 'ipConfig': {
                                                     'configurationType': 'DHCP',
                                                     'dhcpConfig': {
@@ -95,20 +96,8 @@ def get_static_vmware_params(app_info, source_vc, dest_vc):
                 'objectId': get_vc_id(dest_vc),
                 'resourceProfiles': [{
                                      'customResourceSets': [],
-                                     'defaultResourceSet': {
-                                         'computeConfig': {
-                                             'clusterId': 17710,
-                                             'clusterMoRef': 'domain-c9202',
-                                             'dataCenterId': 16207,
-                                             'dataCenterMoRef': 'datacenter-8647',
-                                             'dataStoreId': 16216,
-                                             'dataStoreMoRef': 'datastore-8657',
-                                             'networkPortGroupId': 17481,
-                                             'networkPortGroupMoRef': 'network-8661',
-                                             'resourcePoolId': 17711,
-                                             'resourcePoolMoRef': 'resgroup-9203'},
-                                         'name': 'Default resource set'},
-                                     'ipConfig': {
+                    'defaultResourceSet': {'computeConfig': {'clusterId': 17710, 'clusterMoRef': 'domain-c9202', 'dataCenterId': 16207, 'dataCenterMoRef': 'datacenter-8647', 'dataStoreId': 28033, 'dataStoreMoRef': 'datastore-12490', 'networkPortGroupId': 17480, 'networkPortGroupMoRef': 'network-8660', 'resourcePoolId': 17711, 'resourcePoolMoRef': 'resgroup-9203'}, 'name': 'Default resource set'},
+                    'ipConfig': {
                                          'configurationType': 'Static',
                                          'staticConfig': {
                                              'configOption': 'Manual',
@@ -241,4 +230,30 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    test_failover(dr_plan_name='pg2-test')
+
+    # # profile 2 #dhcp 3vms with script + 3vms regular
+    apps = get_applications('profile_2')
+    for app in apps:
+        app_name = app.get('name')
+        create_dr_plan(name="{}-dr_plan".format(app_name), app_info=app,source_vc='system-test-vc02.qa01.eng.cohesity.com',
+                       dest_vc='system-test-vc01.qa01.eng.cohesity.com',dr_type='dhcp')
+
+
+    # dr_plans = get_dr_plans('pg2-test')[0]
+    # print(dr_plans)
+    # profile 3 #static
+    # apps = get_applications('profile_3')
+    # for app in apps:
+    #     app_name = app.get('name')
+    #     create_dr_plan(name="{}-dr_plan".format(app_name), app_info=app,source_vc='10.14.22.105',
+    #                    dest_vc='system-test-vc02.qa01.eng.cohesity.com',dr_type='static')
+
+    # activate 25 dr_plans with  profile 3
+    # dr_plans = get_dr_plans('profile_3_app_67-dr_plan')[0]
+    # print(dr_plans)
+    # for dr_plan in dr_plans:
+    #     activate(dr_plan_info=dr_plan)
+    # delete all profile_3 dr plans
+    # dr_plans = get_dr_plans('profile_3')
+    # for dr_plan in dr_plans:
+    #     delete_dr_plan(dr_id=dr_plan.get('id'))

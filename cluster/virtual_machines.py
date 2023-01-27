@@ -54,7 +54,7 @@ def get_vc_id(name):
     if response:
         for source in response.get('sources'):
             if name in source.get('name'):
-                return source['sourceInfoList'][0]['sourceId']
+                return source['sourceInfoList'][0]['sourceId'] # when vc_02 as source make this -1, when dest make this 0
 
 def get_vm_source_ids_from_pg(pg_name):
     return get_protection_info(pg_name)['sourceIds']
@@ -62,6 +62,8 @@ def get_vm_source_ids_from_pg(pg_name):
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.5")
-    res = get_protected_vm_info('sitecon-lin-001', vc_id='16201')
+    # setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.5")
+    # res = get_protected_vm_info('sitecon-lin-001', vc_id='16201')
+    # print(res)
+    res = get_vc_id('system-test-vc02.qa01.eng.cohesity.com')
     print(res)
