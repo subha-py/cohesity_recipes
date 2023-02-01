@@ -180,15 +180,15 @@ if __name__ == '__main__':
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
     # profile 2 apps
-    protection_info = get_protection_info('profile_2_pg')
-    source_ids = protection_info['sourceIds']
-    number_of_vms_per_app = 6
-    for i in range(0, len(source_ids), number_of_vms_per_app):
-        create_application(app_name='profile_2_app_{}'.format(i+1),
-                           vm_id_list=source_ids[i:i+number_of_vms_per_app],
-                           source_vc='system-test-vc02.qa01.eng.cohesity.com',
-                           protection_info=protection_info,
-                           script=True, delay=True, split_script_vms=True)
+    # protection_info = get_protection_info('profile_2_pg')
+    # source_ids = protection_info['sourceIds']
+    # number_of_vms_per_app = 6
+    # for i in range(0, len(source_ids), number_of_vms_per_app):
+    #     create_application(app_name='profile_2_app_{}'.format(i+1),
+    #                        vm_id_list=source_ids[i:i+number_of_vms_per_app],
+    #                        source_vc='system-test-vc02.qa01.eng.cohesity.com',
+    #                        protection_info=protection_info,
+    #                        script=True, delay=True, split_script_vms=True)
 
     # protection_info = get_protection_info('profile_2_pg')
     # create_application(app_name='subha-auto-script',
@@ -196,3 +196,7 @@ if __name__ == '__main__':
     #                    source_vc='system-test-vc02.qa01.eng.cohesity.com',
     #                    protection_info=protection_info,
     #                    script=True, delay=True, split_script_vms=True)
+
+    # apps = get_applications(name='profile_cdp')
+    # for app in apps:
+    #     delete_application(app_name=app.get('name'))

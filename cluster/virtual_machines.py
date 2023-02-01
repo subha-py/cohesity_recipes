@@ -42,7 +42,7 @@ def generate_vm_names(prefix, count, start_index):
         names.append("{prefix}{val}".format(prefix=prefix,val=val))
     return names
 
-def get_vc_id(name):
+def get_vc_id(name, first=True):
     # https://helios-sandbox.cohesity.com/v2/mcm/data-protect/sources?excludeProtectionStats=true&environments=kVMware
     ip = os.environ.get('ip')
     response = requests.request("GET",
@@ -54,7 +54,9 @@ def get_vc_id(name):
     if response:
         for source in response.get('sources'):
             if name in source.get('name'):
-                return source['sourceInfoList'][0]['sourceId'] # when vc_02 as source make this -1, when dest make this 0
+                if 'vc02' in name:
+                    return source['sourceInfoList'][-1]['sourceId'] # when vc_02 is dest
+                return source['sourceInfoList'][0]['sourceId'] # when vc_02 as source
 
 def get_vm_source_ids_from_pg(pg_name):
     return get_protection_info(pg_name)['sourceIds']
