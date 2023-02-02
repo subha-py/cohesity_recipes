@@ -291,16 +291,19 @@ if __name__ == '__main__':
     #     app_name = app.get('name')
     #     status_code = create_dr_plan(name="{}-dr_plan".format(app_name), app_info=app,source_vc='system-test-vc02.qa01.eng.cohesity.com',
     #                    dest_vc='system-test-vc01.qa01.eng.cohesity.com',dr_type='dhcp')
-    #     if status_code == 201:
-    #         break
+    # dr_plans  = get_dr_plans(name='profile_2')
+    # for plan in dr_plans:
+    #     activate(dr_plan_info=plan)
     # # delete all profile_2 plans
     # plans = get_dr_plans(name='profile_2')[:12]
     # plans += get_dr_plans(name='profile_3')[:11]
     # for plan in plans:
     #     delete_dr_plan(dr_id=plan.get('id'))
     #
-    # plans = get_dr_plans(name='profile_2_app_109-dr_plan')
+    # plans = get_dr_plans(name='profile_2')
     # for plan in plans:
+    #     if "profile_2_app_103-dr_plan" in plan.get('name'):
+    #         continue
     #     delete_dr_plan(dr_id=plan.get('id'))
 
 
@@ -324,33 +327,32 @@ if __name__ == '__main__':
     #     delete_dr_plan(dr_id=dr_plan.get('id'))
 
 
-    # dr_plans = get_dr_plans(name='phase_1')
-    # for plan in dr_plans:
-    #     delete_dr_plan(dr_id=plan.get('id'))
-    # dr_plans = get_dr_plans('profile_2')
-    # random_plans=random.sample(dr_plans,10)
+
+    dr_plans = get_dr_plans('profile_2')
+    random_plans=random.sample(dr_plans,10)
     # dr_plans = get_dr_plans('profile_3')
     # random_plans += random.sample(dr_plans, 10)
     # dr_plans = get_dr_plans('profile_cdp')
     # random_plans += random.sample(dr_plans, 3)
-    # result = {}
-    # plan_names = []
-    # for plan in random_plans:
-    #     print(plan.get('name'))
-    #     if plan.get('name').startswith('profile_2'):
-    #         result['profile_2'] = result.get('profile_2', 0) + 1
-    #     elif plan.get('name').startswith('profile_3'):
-    #         result['profile_3'] = result.get('profile_3', 0) + 1
-    #     elif plan.get('name').startswith('profile_cdp'):
-    #         result['profile_cdp'] = result.get('profile_cdp', 0) + 1
-    #     plan_names.append(plan.get('name'))
-    #     test_failover(dr_plan_info=plan)
-    # print(result)
-    # print(plan_names)
+    result = {}
+    plan_names = []
+    for plan in random_plans:
+        print(plan.get('name'))
+        if plan.get('name').startswith('profile_2'):
+            result['profile_2'] = result.get('profile_2', 0) + 1
+        elif plan.get('name').startswith('profile_3'):
+            result['profile_3'] = result.get('profile_3', 0) + 1
+        elif plan.get('name').startswith('profile_cdp'):
+            result['profile_cdp'] = result.get('profile_cdp', 0) + 1
+        plan_names.append(plan.get('name'))
+        test_failover(dr_plan_info=plan)
+    #
+    print(result)
+    print(plan_names)
 
 
-    # test_failover(dr_plan_name='profile_cdp_2_app_4-dr_plan', )
-    plans = ['profile_2_app_91-dr_plan', 'profile_2_app_103-dr_plan', 'profile_2_app_181-dr_plan', 'profile_2_app_121-dr_plan', 'profile_2_app_79-dr_plan', 'profile_2_app_217-dr_plan', 'profile_2_app_163-dr_plan', 'profile_2_app_13-dr_plan', 'profile_2_app_289-dr_plan', 'profile_2_app_61-dr_plan', 'profile_3_app_4-dr_plan', 'profile_3_app_73-dr_plan', 'profile_3_app_16-dr_plan', 'profile_3_app_76-dr_plan', 'profile_3_app_31-dr_plan', 'profile_3_app_46-dr_plan', 'profile_3_app_13-dr_plan', 'profile_3_app_22-dr_plan', 'profile_3_app_55-dr_plan', 'profile_3_app_28-dr_plan', 'profile_cdp_2_app_1-dr_plan', 'profile_cdp_1_app_1-dr_plan', 'profile_cdp_2_app_3-dr_plan']
-    for plan in plans:
-        plan = get_dr_plans(name=plan)[0]
-        teardown(dr_plan_id=plan.get('id'))
+    # plans = ['profile_2_app_247-dr_plan', 'profile_2_app_31-dr_plan', 'profile_2_app_61-dr_plan', 'profile_2_app_109-dr_plan', 'profile_2_app_127-dr_plan', 'profile_2_app_49-dr_plan', 'profile_2_app_73-dr_plan', 'profile_2_app_265-dr_plan', 'profile_2_app_157-dr_plan', 'profile_2_app_217-dr_plan', 'profile_3_app_28-dr_plan', 'profile_3_app_58-dr_plan', 'profile_3_app_16-dr_plan', 'profile_3_app_13-dr_plan', 'profile_3_app_1-dr_plan', 'profile_3_app_43-dr_plan', 'profile_3_app_22-dr_plan', 'profile_3_app_7-dr_plan', 'profile_3_app_46-dr_plan', 'profile_3_app_70-dr_plan', 'profile_cdp_2_app_4-dr_plan', 'profile_cdp_1_app_4-dr_plan', 'profile_cdp_1_app_3-dr_plan']
+    # print(len(plans))
+    # for plan in plans:
+    #     plan = get_dr_plans(name=plan)[0]
+    #     teardown(dr_plan_id=plan.get('id'))

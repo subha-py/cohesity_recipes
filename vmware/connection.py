@@ -223,6 +223,6 @@ def find_by_moid(system_info,moid):
     return vm
 
 if __name__ == '__main__':
-    system_info = {'host':'10.14.22.105'}
-    vm = find_by_moid(system_info,'vm-16391')
+    system_info = {'host':'system-test-vc02.qa01.eng.cohesity.com'}
+    vm = find_by_moid(system_info,'vm-18537')
     print(vm.guest.ipAddress)
