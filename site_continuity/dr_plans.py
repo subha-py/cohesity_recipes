@@ -12,6 +12,8 @@ from cluster.connection import \
 from vmware.connection import find_by_moid
 from cluster.virtual_machines import get_vc_id
 import random
+import uuid
+import concurrent.futures
 def get_dr_plans(name=None):
     ip = os.environ.get('ip')
     params = None
@@ -162,7 +164,21 @@ def create_dr_plan(name, app_info,source_vc, dest_vc, primary_site="st-site-con-
             error=response.get('errorMessage')
         ))
         return status_code
-
+def test_failover_in_parallel(plans, **kwargs):
+    future_to_plan = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(plans)) as executor:
+        for plan in plans:
+            print('working on plan - {}'.format(plan.get("id")))
+            kwargs['dr_plan_info'] = plan
+            future_to_plan[executor.submit(test_failover,**kwargs)] = plan.get("id")
+        for future in concurrent.futures.as_completed(future_to_plan):
+            plan_id = future_to_plan[future]
+            try:
+                res = future.result()
+            except Exception as exc:
+                print("%r generated an exception: %s" % (plan_id,exc))
+            else:
+                print("Test failover is initiated - {}".format(plan_id))
 def delete_dr_plan(dr_plan_name=None, dr_id=None):
     if not dr_id:
         dr_id = get_dr_plans(dr_plan_name)[0]
@@ -201,8 +217,10 @@ def activate(name=None, dr_plan_info=None):
 
 
 def test_failover(dr_plan_info=None, dr_plan_name=None, performStorageVmotion=False):
+
     if not dr_plan_info:
         dr_plan_info = get_dr_plans(name=dr_plan_name)[0]
+    refresh_replicated_snapshots(dr_id=dr_plan_info.get('id'))
     vms = get_replicated_snapshots(dr_plan_info.get('appId'))
     objectSnapshotOverrides = []
     for vm in vms:
@@ -265,6 +283,52 @@ def teardown(dr_plan_id, action_to_tear='TestFailover'):
                     name=dr_plan_id, error=response.get('errorMessage')))
                 return response
     print('Could not find action to teardown for dr-id - {}'.format(dr_plan_id))
+
+def refresh_replicated_snapshots(dr_id):
+    data = {
+        "operationId": str(uuid.uuid4()),
+        "operationType": "RefreshReplicatedSnapshots",
+        "refreshReplicatedSnapshotsParams": {
+            "drPlanId": dr_id
+        }
+    }
+    ip = os.environ.get('ip')
+    response = requests.request("POST", "{base_url}/objects/operations".format(base_url=get_base_url(ip)),
+                                verify=False,
+                                headers=get_headers(), json=data)
+
+    if response.status_code == 201:
+        status = 'InProgress'
+        counter = 0
+        while status!= 'Success' and counter < 10:
+            print('going to sleep for 20 secs before polling for refresh snapshot status - {dr_id}, counter = {counter}'
+                  .format(dr_id=dr_id,counter=counter))
+            time.sleep(20)
+            # wait for refresh to complete
+            wait_response = requests.request("GET", "{base_url}/objects/operations/{op_id}".format(
+                base_url=get_base_url(ip), op_id=data['operationId']), verify=False,
+                                    headers=get_headers())
+            if wait_response.status_code == 200:
+                wait_response = wait_response.json()
+                status = wait_response.get('status')
+                counter += 1
+            else:
+                wait_response = wait_response.json()
+                print("Unsuccessful to get status of refresh snapshot action for dr_plan named - {dr_id} due to error- \
+                      {error}".format(
+                    dr_id=dr_id,
+                    error=wait_response.get('errorMessage')
+                ))
+                return wait_response
+        print('Refresh Snapshots is successful')
+        return response.json()
+    else:
+        response = response.json()
+        print("Unsuccessful to refresh snapshots for dr_plan named - {dr_id} due to error - {error}".format(
+            dr_id=dr_id,
+            error=response.get('errorMessage')
+        ))
+        return response
 
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
@@ -332,29 +396,29 @@ if __name__ == '__main__':
 
     dr_plans = get_dr_plans('profile_2')
     random_plans=random.sample(dr_plans,10)
-    # dr_plans = get_dr_plans('profile_3')
-    # random_plans += random.sample(dr_plans, 10)
-    # dr_plans = get_dr_plans('profile_cdp')
-    # random_plans += random.sample(dr_plans, 3)
-    # result = {}
-    # plan_names = []
-    # for plan in random_plans:
-    #     print(plan.get('name'))
-    #     if plan.get('name').startswith('profile_2'):
-    #         result['profile_2'] = result.get('profile_2', 0) + 1
-    #     elif plan.get('name').startswith('profile_3'):
-    #         result['profile_3'] = result.get('profile_3', 0) + 1
-    #     elif plan.get('name').startswith('profile_cdp'):
-    #         result['profile_cdp'] = result.get('profile_cdp', 0) + 1
-    #     plan_names.append(plan.get('name'))
-    #     test_failover(dr_plan_info=plan)
-    # #
-    # print(result)
-    # print(plan_names)
+    dr_plans = get_dr_plans('profile_3')
+    random_plans += random.sample(dr_plans, 10)
+    dr_plans = get_dr_plans('profile_cdp')
+    random_plans += random.sample(dr_plans, 3)
+    result = {}
+    plan_names = []
+    for plan in random_plans:
+        print(plan.get('name'))
+        if plan.get('name').startswith('profile_2'):
+            result['profile_2'] = result.get('profile_2', 0) + 1
+        elif plan.get('name').startswith('profile_3'):
+            result['profile_3'] = result.get('profile_3', 0) + 1
+        elif plan.get('name').startswith('profile_cdp'):
+            result['profile_cdp'] = result.get('profile_cdp', 0) + 1
+        plan_names.append(plan.get('name'))
+        test_failover(dr_plan_info=plan, performStorageVmotion=True)
+    #
+    print(result)
+    print(plan_names)
 
-    dr_plan = get_dr_plans('profile_2_app_49-dr_plan')[0]
-    actions = get_actions(dr_plan_id=dr_plan.get('id'))
-    print(actions)
+    # app_info = get_applications('profile_3_app_31')[0]
+    # res = get_replicated_snapshots(app_id=app_info.get('id'))
+    # print(res)
     # plans = ['profile_2_app_247-dr_plan', 'profile_2_app_31-dr_plan', 'profile_2_app_61-dr_plan', 'profile_2_app_109-dr_plan', 'profile_2_app_127-dr_plan', 'profile_2_app_49-dr_plan', 'profile_2_app_73-dr_plan', 'profile_2_app_265-dr_plan', 'profile_2_app_157-dr_plan', 'profile_2_app_217-dr_plan', 'profile_3_app_28-dr_plan', 'profile_3_app_58-dr_plan', 'profile_3_app_16-dr_plan', 'profile_3_app_13-dr_plan', 'profile_3_app_1-dr_plan', 'profile_3_app_43-dr_plan', 'profile_3_app_22-dr_plan', 'profile_3_app_7-dr_plan', 'profile_3_app_46-dr_plan', 'profile_3_app_70-dr_plan', 'profile_cdp_2_app_4-dr_plan', 'profile_cdp_1_app_4-dr_plan', 'profile_cdp_1_app_3-dr_plan']
     # print(len(plans))
     # for plan in plans:

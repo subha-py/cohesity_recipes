@@ -7,7 +7,6 @@ from cluster.protection import get_protection_info
 from cluster.virtual_machines import get_protected_vm_info, get_vm_protection_info, get_vm_source_ids_from_pg, get_vc_id
 from site_continuity.connection import get_base_url, get_headers, set_environ_variables
 from site_continuity.sites import get_sites
-import base64
 
 def get_applications(name=None):
     ip = os.environ.get('ip')
@@ -169,8 +168,9 @@ def get_replicated_snapshots(app_id):
                                                                                                      app_id=app_id), verify=False,
                                 headers=get_headers())
     if response.status_code == 200:
-        return response.json()['objectSnapshots']
-
+        object_snapshots =  response.json()['objectSnapshots']
+        object_snapshots.sort(key=lambda x: x['replicatedSnapshots'][0]['snapshotTimeUsecs'], reverse=True)
+        return object_snapshots
     else:
         print("Unsuccessful to get applications info - {}".format(response.status_code))
         return None
@@ -180,16 +180,16 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    # profile 2 apps
-    protection_info = get_protection_info('profile_2_pg')
-    source_ids = protection_info['sourceIds']
-    number_of_vms_per_app = 6
-    for i in range(0, len(source_ids), number_of_vms_per_app):
-        create_application(app_name='profile_2_app_{}'.format(i+1),
-                           vm_id_list=source_ids[i:i+number_of_vms_per_app],
-                           source_vc='system-test-vc02.qa01.eng.cohesity.com',
-                           protection_info=protection_info,
-                           script=True, delay=True, split_script_vms=True)
+    # # profile 2 apps
+    # protection_info = get_protection_info('profile_2_pg')
+    # source_ids = protection_info['sourceIds']
+    # number_of_vms_per_app = 6
+    # for i in range(0, len(source_ids), number_of_vms_per_app):
+    #     create_application(app_name='profile_2_app_{}'.format(i+1),
+    #                        vm_id_list=source_ids[i:i+number_of_vms_per_app],
+    #                        source_vc='system-test-vc02.qa01.eng.cohesity.com',
+    #                        protection_info=protection_info,
+    #                        script=True, delay=True, split_script_vms=True)
 
     # protection_info = get_protection_info('profile_2_pg')
     # create_application(app_name='subha-auto-script',
