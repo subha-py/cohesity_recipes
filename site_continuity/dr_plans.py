@@ -236,7 +236,9 @@ def get_actions(dr_plan_id):
     response = requests.request("GET", "{base_url}/actions".format(base_url=get_base_url(ip)), verify=False,
                                 headers=get_headers(), params=params)
     if response.status_code == 200:
-        return response.json()['actions']
+        actions =  response.json()['actions']
+        actions.sort(key=lambda x: x['attempts'][0]['endTimeUsecs'], reverse=True)
+        return actions
     else:
         response = response.json()
         print('unsuccessful to get actions for dr_plan for {name}, due to error - {error}'.format(name=dr_plan_id,
@@ -334,23 +336,25 @@ if __name__ == '__main__':
     # random_plans += random.sample(dr_plans, 10)
     # dr_plans = get_dr_plans('profile_cdp')
     # random_plans += random.sample(dr_plans, 3)
-    result = {}
-    plan_names = []
-    for plan in random_plans:
-        print(plan.get('name'))
-        if plan.get('name').startswith('profile_2'):
-            result['profile_2'] = result.get('profile_2', 0) + 1
-        elif plan.get('name').startswith('profile_3'):
-            result['profile_3'] = result.get('profile_3', 0) + 1
-        elif plan.get('name').startswith('profile_cdp'):
-            result['profile_cdp'] = result.get('profile_cdp', 0) + 1
-        plan_names.append(plan.get('name'))
-        test_failover(dr_plan_info=plan)
-    #
-    print(result)
-    print(plan_names)
+    # result = {}
+    # plan_names = []
+    # for plan in random_plans:
+    #     print(plan.get('name'))
+    #     if plan.get('name').startswith('profile_2'):
+    #         result['profile_2'] = result.get('profile_2', 0) + 1
+    #     elif plan.get('name').startswith('profile_3'):
+    #         result['profile_3'] = result.get('profile_3', 0) + 1
+    #     elif plan.get('name').startswith('profile_cdp'):
+    #         result['profile_cdp'] = result.get('profile_cdp', 0) + 1
+    #     plan_names.append(plan.get('name'))
+    #     test_failover(dr_plan_info=plan)
+    # #
+    # print(result)
+    # print(plan_names)
 
-
+    dr_plan = get_dr_plans('profile_2_app_49-dr_plan')[0]
+    actions = get_actions(dr_plan_id=dr_plan.get('id'))
+    print(actions)
     # plans = ['profile_2_app_247-dr_plan', 'profile_2_app_31-dr_plan', 'profile_2_app_61-dr_plan', 'profile_2_app_109-dr_plan', 'profile_2_app_127-dr_plan', 'profile_2_app_49-dr_plan', 'profile_2_app_73-dr_plan', 'profile_2_app_265-dr_plan', 'profile_2_app_157-dr_plan', 'profile_2_app_217-dr_plan', 'profile_3_app_28-dr_plan', 'profile_3_app_58-dr_plan', 'profile_3_app_16-dr_plan', 'profile_3_app_13-dr_plan', 'profile_3_app_1-dr_plan', 'profile_3_app_43-dr_plan', 'profile_3_app_22-dr_plan', 'profile_3_app_7-dr_plan', 'profile_3_app_46-dr_plan', 'profile_3_app_70-dr_plan', 'profile_cdp_2_app_4-dr_plan', 'profile_cdp_1_app_4-dr_plan', 'profile_cdp_1_app_3-dr_plan']
     # print(len(plans))
     # for plan in plans:
