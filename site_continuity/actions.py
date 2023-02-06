@@ -25,20 +25,7 @@ def activate(name=None, dr_plan_info=None):
         response = response.json()
         print('unsuccessful to activate {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
                                                                                error=response.get('errorMessage')))
-def prepare_for_failback(name=None, dr_plan_info=None):
-    if not dr_plan_info:
-        dr_plan_info = get_dr_plans(name)[0]
-    data = {'action': 'PrepareForFailback'}
-    response = requests.request("POST", "{base_url}/dr-plans/{plan_id}/actions".format(base_url=get_base_url(ip),
-                                                                                       plan_id=dr_plan_info.get('id')),
-                                verify=False,
-                                headers=get_headers(), json=data)
-    if response.status_code == 201:
-        print('{name} is successfully prepared for failback'.format(name=dr_plan_info.get('name')))
-    else:
-        response = response.json()
-        print('unsuccessful to prepared for failback {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
-                                                                               error=response.get('errorMessage')))
+
 
 
 def failover(dr_plan_info=None, dr_plan_name=None, performStorageVmotion=False, test_failover=False):
@@ -198,6 +185,72 @@ def refresh_replicated_snapshots(dr_id):
         ))
         return response
 
+def prepare_for_failback(name=None, dr_plan_info=None):
+    if not dr_plan_info:
+        dr_plan_info = get_dr_plans(name)[0]
+    data = {'action': 'PrepareForFailback'}
+    response = requests.request("POST", "{base_url}/dr-plans/{plan_id}/actions".format(base_url=get_base_url(ip),
+                                                                                       plan_id=dr_plan_info.get('id')),
+                                verify=False,
+                                headers=get_headers(), json=data)
+    if response.status_code == 201:
+        print('{name} is successfully prepared for failback'.format(name=dr_plan_info.get('name')))
+    else:
+        response = response.json()
+        print('unsuccessful to prepared for failback {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
+                                                                               error=response.get('errorMessage')))
+
+def failback(dr_plan_info=None, dr_plan_name=None, performStorageVmotion=False, test_failback=True):
+    # todo most of the code for failback is equal to failover, try to write a more generalize method
+    if not dr_plan_info:
+        dr_plan_info = get_dr_plans(name=dr_plan_name)[0]
+    refresh_replicated_snapshots(dr_id=dr_plan_info.get('id'))
+    vms = get_replicated_snapshots(dr_plan_info.get('appId'))
+    objectSnapshotOverrides = []
+    for vm in vms:
+        snap = {'objectId': vm.get('objectDetails').get('objectId'),
+                'snapshotId': vm.get('replicatedSnapshots')[0].get('snapshotId')}
+        objectSnapshotOverrides.append(snap)
+    if test_failback:
+        action = 'TestFailback'
+        actionKey = 'testFailbackParams'
+        vmwareParams = {
+            "performStorageVmotion": performStorageVmotion,
+            "resourceProfileName":
+                dr_plan_info['primarySite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0]['name']
+        }
+    else:
+        action = 'Failback'
+        actionKey = 'failbackParams'
+        vmwareParams = {
+            "shutdownVms": False,
+            "protectVms": True,
+            "resourceProfileName":
+                dr_plan_info['primarySite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0]['name']
+        }
+    data = {'action': action,
+            actionKey:{
+                "objectSnapshotOverrides": objectSnapshotOverrides,
+                "environment": "vmware",
+                "vmwareParams": vmwareParams
+                }
+            }
+
+    response = requests.request("POST", "{base_url}/dr-plans/{plan_id}/actions".format(base_url=get_base_url(ip),
+                                                                                       plan_id=dr_plan_info.get('id')),
+                                verify=False,
+                                headers=get_headers(), json=data)
+    if response.status_code == 201:
+        if test_failback:
+            print('test failover for {name} is successfully triggered'.format(name=dr_plan_info.get('name')))
+        else:
+            print('failover for {name} is successfully triggered'.format(name=dr_plan_info.get('name')))
+    else:
+        response = response.json()
+        print('unsuccessful to test failover for {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
+                                                                               error=response.get('errorMessage')))
+
+
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
@@ -283,7 +336,11 @@ if __name__ == '__main__':
     # app_info = get_applications('profile_3_app_31')[0]
     # res = get_replicated_snapshots(app_id=app_info.get('id'))
     # print(res)
-    plans = ['profile_2_app_277-dr_plan', 'profile_2_app_73-dr_plan', 'profile_2_app_253-dr_plan', 'profile_2_app_175-dr_plan', 'profile_2_app_169-dr_plan', 'profile_2_app_163-dr_plan', 'profile_2_app_271-dr_plan', 'profile_3_app_28-dr_plan', 'profile_3_app_7-dr_plan', 'profile_3_app_43-dr_plan', 'profile_3_app_31-dr_plan', 'profile_3_app_70-dr_plan', 'profile_3_app_46-dr_plan', 'profile_3_app_22-dr_plan', 'profile_3_app_4-dr_plan', 'profile_3_app_1-dr_plan', 'profile_3_app_58-dr_plan', 'profile_3_app_73-dr_plan', 'profile_3_app_16-dr_plan', 'profile_cdp_2_app_2-dr_plan', 'profile_cdp_1_app_1-dr_plan', 'profile_cdp_2_app_4-dr_plan', 'profile_cdp_1_app_3-dr_plan', 'profile_cdp_1_app_2-dr_plan']
-    print(len(plans))
-    for plan in plans:
-        prepare_for_failback(name=plan)
+    # plans = ['profile_2_app_277-dr_plan', 'profile_2_app_73-dr_plan', 'profile_2_app_253-dr_plan', 'profile_2_app_175-dr_plan', 'profile_2_app_169-dr_plan', 'profile_2_app_163-dr_plan', 'profile_2_app_271-dr_plan', 'profile_3_app_28-dr_plan', 'profile_3_app_7-dr_plan', 'profile_3_app_43-dr_plan', 'profile_3_app_31-dr_plan', 'profile_3_app_70-dr_plan', 'profile_3_app_46-dr_plan', 'profile_3_app_22-dr_plan', 'profile_3_app_4-dr_plan', 'profile_3_app_1-dr_plan', 'profile_3_app_58-dr_plan', 'profile_3_app_73-dr_plan', 'profile_3_app_16-dr_plan', 'profile_cdp_2_app_2-dr_plan', 'profile_cdp_1_app_1-dr_plan', 'profile_cdp_2_app_4-dr_plan', 'profile_cdp_1_app_3-dr_plan', 'profile_cdp_1_app_2-dr_plan']
+    # print(len(plans))
+    # for plan in plans:
+    #     prepare_for_failback(name=plan)
+
+    # test_failback
+    dr_plan = get_dr_plans(name='profile_2_app_163-dr_plan')[0]
+    failback(dr_plan_info=dr_plan,test_failback=True)
