@@ -56,6 +56,9 @@ def get_vc_id(name, first=True):
             if name in source.get('name'):
                 # if 'vc02' in name:
                 #     return source['sourceInfoList'][-1]['sourceId'] # when vc_02 is dest
+                if 'vc03' in name:
+                    return source['sourceInfoList'][-1]['sourceId'] # when vc_03 is dest
+
                 return source['sourceInfoList'][0]['sourceId'] # when vc_02 as source
 
 def get_vm_source_ids_from_pg(pg_name):
