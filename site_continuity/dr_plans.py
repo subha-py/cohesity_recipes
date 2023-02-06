@@ -9,11 +9,13 @@ from cluster.connection import \
      )
 from vmware.connection import find_by_moid
 from cluster.virtual_machines import get_vc_id
-def get_dr_plans(name=None):
+def get_dr_plans(name=None, params=None):
     ip = os.environ.get('ip')
-    params = None
     if name is not None:
-        params = {'names': name}
+        if params is not None:
+            params['names'] = name
+        else:
+            params = {'names': name}
     response = requests.request("GET", "{base_url}/dr-plans".format(base_url=get_base_url(ip)), verify=False,
                                 headers=get_headers(), params=params)
     if response.status_code == 200:
@@ -178,3 +180,9 @@ def delete_all():
     dr_plans = get_dr_plans()
     for dr_plan in dr_plans:
         delete_dr_plan(dr_plan.get('name'))
+if __name__ == '__main__':
+    ip = 'helios-sandbox.cohesity.com'
+    set_environ_variables({'ip': ip})
+    setup_cluster_automation_variables_in_environment('10.14.7.5')
+    plans = get_dr_plans(params={"statuses":"FailbackReady"})
+    print(len(plans))
