@@ -2,6 +2,8 @@ import os
 import requests
 from site_continuity.connection import get_base_url, get_headers, set_environ_variables
 from site_continuity.sites import get_sites
+from site_continuity.applications import get_applications
+
 from cluster.connection import \
     (get_base_url as cohesity_base_url,
      get_headers as get_cohesity_headers,
@@ -9,6 +11,7 @@ from cluster.connection import \
      )
 from vmware.connection import find_by_moid
 from cluster.virtual_machines import get_vc_id
+import copy
 def get_dr_plans(name=None, params=None):
     ip = os.environ.get('ip')
     if name is not None:
@@ -176,6 +179,38 @@ def delete_dr_plan(dr_plan_name=None, dr_id=None):
         ))
         return response
 
+def copy_dr(source_dr, app):
+    name = '{}-dr_plan'.format(app.get('name'))
+    app_id = app.get('id')
+    source_dr_copy = copy.deepcopy(source_dr)
+    source_dr_copy['primarySite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0].pop('isValid')
+    source_dr_copy['drSite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0].pop('isValid')
+    data = {
+        "name": name,
+        "description": name,
+        "primarySite": source_dr_copy.get('primarySite'),
+        "drSite": source_dr_copy.get('drSite'),
+        "rpo": source_dr_copy.get('rpo'),
+        "appId": app_id
+    }
+    ip = os.environ.get('ip')
+
+    response = requests.request("POST", "{base_url}/dr-plans".format(base_url=get_base_url(ip)), verify=False,
+                                headers=get_headers(), json=data)
+    status_code = response.status_code
+    if response.status_code == 201:
+        print("Successfully created dr_plan named - {dr_name}".format(
+            dr_name=name
+        ))
+        return status_code
+    else:
+        response = response.json()
+        print("Unsuccessful to create dr_plan named - {dr_name} due to error - {error}".format(
+            dr_name=name,
+            error=response.get('errorMessage')
+        ))
+        return status_code
+
 def delete_all():
     dr_plans = get_dr_plans()
     for dr_plan in dr_plans:
@@ -184,5 +219,20 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    plans = get_dr_plans(params={"statuses":"FailbackReady"})
-    print(len(plans))
+    # create profile 3
+    # source_dr = get_dr_plans(name='profile_3_app_73-dr_plan')[0]
+    # apps = get_applications('phase_2_profile_3')
+    # for app in apps:
+    #     status_code = copy_dr(source_dr, app)
+
+    # create profile 2
+    # source_dr = get_dr_plans(name='profile_2_app_175-dr_plan')[0]
+    # apps = get_applications('phase_2_profile_2')
+    # for app in apps:
+    #     status_code = copy_dr(source_dr, app)
+
+    # create profile cdp
+    source_dr = get_dr_plans(name='profile_cdp_2_app_4-dr_plan')[0]
+    apps = get_applications('phase_2_profile_cdp')
+    for app in apps:
+        status_code = copy_dr(source_dr, app)

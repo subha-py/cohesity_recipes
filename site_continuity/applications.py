@@ -146,16 +146,22 @@ def create_application(app_name, source_vc, site_name="st-site-con-tx", vm_id_li
         ))
         return response
 
-def delete_application(app_name):
-    app_info = get_applications(app_name)[0]
+def delete_application(app_name=None, app_id=None):
+    if app_id is None:
+        app_info = get_applications(app_name)[0]
+        app_id = app_info.get("id")
     response = requests.request("DELETE", "{base_url}/applications/{app_id}".format(base_url=get_base_url(ip),
-                                                                                    app_id=app_info.get("id")),
+                                                                                    app_id=app_id),
                                 verify=False,
                                 headers=get_headers())
     if response.status_code == 204:
-        print("App - {} is successfully deleted".format(app_name))
+        print("App - {} is successfully deleted".format(app_id))
     else:
-        print("Unable to delete app - {}".format(app_name))
+        response = response.json()
+        print("Unsuccessful to delete application - {app_id} due to error - {error}".format(
+            app_id=app_id,
+            error=response.get('errorMessage')
+        ))
 
 def delete_all():
     apps = get_applications()
@@ -168,7 +174,7 @@ def get_replicated_snapshots(app_id):
                                                                                                      app_id=app_id), verify=False,
                                 headers=get_headers())
     if response.status_code == 200:
-        object_snapshots =  response.json()['objectSnapshots']
+        object_snapshots =  response.json()['objectSnapshots'] #todo sort me
         object_snapshots.sort(key=lambda x: x['replicatedSnapshots'][0]['snapshotTimeUsecs'], reverse=True)
         return object_snapshots
     else:
@@ -185,19 +191,34 @@ if __name__ == '__main__':
     # source_ids = protection_info['sourceIds']
     # number_of_vms_per_app = 6
     # for i in range(0, len(source_ids), number_of_vms_per_app):
-    #     create_application(app_name='profile_2_app_{}'.format(i+1),
+    #     create_application(app_name='phase_2_profile_2_app_{}'.format(i+1),
     #                        vm_id_list=source_ids[i:i+number_of_vms_per_app],
     #                        source_vc='system-test-vc02.qa01.eng.cohesity.com',
     #                        protection_info=protection_info,
     #                        script=True, delay=True, split_script_vms=True)
 
-    # protection_info = get_protection_info('profile_2_pg')
-    # create_application(app_name='subha-auto-script',
-    #                    vm_id_list=source_ids,
-    #                    source_vc='system-test-vc02.qa01.eng.cohesity.com',
-    #                    protection_info=protection_info,
-    #                    script=True, delay=True, split_script_vms=True)
+    # # profile 3 apps
+    # protection_info = get_protection_info('profile_3_pg')
+    # source_ids = protection_info['sourceIds']
+    # number_of_vms_per_app = 3
+    # for i in range(0, len(source_ids), number_of_vms_per_app):
+    #     create_application(app_name='phase_2_profile_3_app_{}'.format(i + 1),
+    #                        vm_id_list=source_ids[i:i + number_of_vms_per_app],
+    #                        source_vc='10.14.22.105',
+    #                        protection_info=protection_info,
+    #                        script=False, delay=False, split_script_vms=False)
 
-    # apps = get_applications(name='profile_2')
+    # # profile cdp apps
+    protection_info = get_protection_info('CDP-New-002')
+    source_ids = protection_info['sourceIds']
+    number_of_vms_per_app = 1
+    for i in range(0, len(source_ids), number_of_vms_per_app):
+        create_application(app_name='phase_2_profile_cdp_app_{}'.format(i + 1),
+                           vm_id_list=source_ids[i:i + number_of_vms_per_app],
+                           source_vc='system-test-vc03.qa01.eng.cohesity.com',
+                           protection_info=protection_info,
+                           script=False, delay=False, split_script_vms=False)
+
+    # apps = get_applications(name='profile_cdp')
     # for app in apps:
-    #     delete_application(app_name=app.get('name'))
+    #     delete_application(app_id=app.get('id'))

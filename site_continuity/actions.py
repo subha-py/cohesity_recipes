@@ -26,6 +26,21 @@ def activate(name=None, dr_plan_info=None):
         print('unsuccessful to activate {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
                                                                                error=response.get('errorMessage')))
 
+def prepare_for_failover(name=None, dr_plan_info=None):
+    if not  dr_plan_info:
+        dr_plan_info = get_dr_plans(name)[0]
+    data = {'action': 'PrepareForFailover'}
+    response = requests.request("POST", "{base_url}/dr-plans/{plan_id}/actions".format(base_url=get_base_url(ip),
+                                                                                       plan_id=dr_plan_info.get('id')),
+                                verify=False,
+                                headers=get_headers(), json=data)
+    if response.status_code == 201:
+        print('{name} is successfully Prepared For Failover'.format(name=dr_plan_info.get('name')))
+    else:
+        response = response.json()
+        print('unsuccessful to Prepare For Failover {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
+                                                                               error=response.get('errorMessage')))
+
 
 
 def failover(dr_plan_info=None, dr_plan_name=None, performStorageVmotion=False, test_failover=False):
@@ -96,6 +111,24 @@ def failover_in_parallel(plans, **kwargs):
                     print("test failover is initiated - {}".format(plan_id))
                 print("failover is initiated - {}".format(plan_id))
 
+def failback_in_parallel(plans, **kwargs):
+    future_to_plan = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(plans)) as executor:
+        for plan in plans:
+            print('working on plan - {}'.format(plan.get("id")))
+            kwargs['dr_plan_info'] = plan
+            future_to_plan[executor.submit(failback,**kwargs)] = plan.get("id")
+        for future in concurrent.futures.as_completed(future_to_plan):
+            plan_id = future_to_plan[future]
+            try:
+                res = future.result()
+            except Exception as exc:
+                print("%r generated an exception: %s" % (plan_id,exc))
+            else:
+                if kwargs.get('test_failback'):
+                    print("test failback is initiated - {}".format(plan_id))
+                print("failback is initiated - {}".format(plan_id))
+
 def get_actions(dr_plan_id):
     ip = os.environ.get('ip')
     params = {'drPlanIds': dr_plan_id}
@@ -110,7 +143,7 @@ def get_actions(dr_plan_id):
         print('unsuccessful to get actions for dr_plan for {name}, due to error - {error}'.format(name=dr_plan_id,
                                                                                         error=response.get(
                                                                                             'errorMessage')))
-def teardown(dr_plan_id, action_to_tear='TestFailover'):
+def teardown(dr_plan_id, action_to_tear='TestFailback'):
     actions = get_actions(dr_plan_id)
     ip = os.environ.get('ip')
     for action in actions:
@@ -173,7 +206,7 @@ def refresh_replicated_snapshots(dr_id):
             raise SystemError("Unsuccessful to get status of refresh snapshot action for dr_plan named - {dr_id} due to error- \
                                   {error}".format(
                 dr_id=dr_id,
-                error='waited for 10mins refresh is not completed'
+                error='waited for 20mins refresh is not completed - op id = {}'.format(data['operationId'])
             ))
         print('Refresh Snapshots is successful')
         return response.json()
@@ -200,11 +233,12 @@ def prepare_for_failback(name=None, dr_plan_info=None):
         print('unsuccessful to prepared for failback {name}, due to error - {error}'.format(name=dr_plan_info.get('name'),
                                                                                error=response.get('errorMessage')))
 
-def failback(dr_plan_info=None, dr_plan_name=None, performStorageVmotion=False, test_failback=True):
+def failback(dr_plan_info=None, dr_plan_name=None, performStorageVmotion=False, test_failback=False, refresh_snapshot=True):
     # todo most of the code for failback is equal to failover, try to write a more generalize method
     if not dr_plan_info:
         dr_plan_info = get_dr_plans(name=dr_plan_name)[0]
-    refresh_replicated_snapshots(dr_id=dr_plan_info.get('id'))
+    if refresh_snapshot:
+        refresh_replicated_snapshots(dr_id=dr_plan_info.get('id'))
     vms = get_replicated_snapshots(dr_plan_info.get('appId'))
     objectSnapshotOverrides = []
     for vm in vms:
@@ -342,5 +376,7 @@ if __name__ == '__main__':
     #     prepare_for_failback(name=plan)
 
     # test_failback
-    dr_plan = get_dr_plans(name='profile_2_app_163-dr_plan')[0]
-    failback(dr_plan_info=dr_plan,test_failback=True)
+    dr_plan = get_dr_plans(name='profile_cdp_2_app_1-dr_plan')[0]
+    # for plan in dr_plan:
+    #     if 'cdp' in plan.get('name'):
+    teardown(dr_plan_id=dr_plan.get('id'))
