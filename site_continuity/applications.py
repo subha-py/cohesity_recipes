@@ -186,39 +186,13 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    # # profile 2 apps
-    # protection_info = get_protection_info('profile_2_pg')
-    # source_ids = protection_info['sourceIds']
-    # number_of_vms_per_app = 6
-    # for i in range(0, len(source_ids), number_of_vms_per_app):
-    #     create_application(app_name='phase_2_profile_2_app_{}'.format(i+1),
-    #                        vm_id_list=source_ids[i:i+number_of_vms_per_app],
-    #                        source_vc='system-test-vc02.qa01.eng.cohesity.com',
-    #                        protection_info=protection_info,
-    #                        script=True, delay=True, split_script_vms=True)
-
     # # profile 3 apps
-    # protection_info = get_protection_info('profile_3_pg')
-    # source_ids = protection_info['sourceIds']
-    # number_of_vms_per_app = 3
-    # for i in range(0, len(source_ids), number_of_vms_per_app):
-    #     create_application(app_name='phase_2_profile_3_app_{}'.format(i + 1),
-    #                        vm_id_list=source_ids[i:i + number_of_vms_per_app],
-    #                        source_vc='10.14.22.105',
-    #                        protection_info=protection_info,
-    #                        script=False, delay=False, split_script_vms=False)
-
-    # # profile cdp apps
-    protection_info = get_protection_info('CDP-New-002')
+    protection_info = get_protection_info('profile_3_pg')
     source_ids = protection_info['sourceIds']
-    number_of_vms_per_app = 1
+    number_of_vms_per_app = 3
     for i in range(0, len(source_ids), number_of_vms_per_app):
-        create_application(app_name='phase_2_profile_cdp_app_{}'.format(i + 1),
+        create_application(app_name='phase_2_profile_3_app_{}'.format(i + 1),
                            vm_id_list=source_ids[i:i + number_of_vms_per_app],
-                           source_vc='system-test-vc03.qa01.eng.cohesity.com',
+                           source_vc='10.14.22.105',
                            protection_info=protection_info,
                            script=False, delay=False, split_script_vms=False)
-
-    # apps = get_applications(name='profile_cdp')
-    # for app in apps:
-    #     delete_application(app_id=app.get('id'))

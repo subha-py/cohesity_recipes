@@ -183,8 +183,15 @@ def copy_dr(source_dr, app):
     name = '{}-dr_plan'.format(app.get('name'))
     app_id = app.get('id')
     source_dr_copy = copy.deepcopy(source_dr)
-    source_dr_copy['primarySite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0].pop('isValid')
-    source_dr_copy['drSite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0].pop('isValid')
+    try:
+        source_dr_copy['primarySite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0].pop('isValid')
+    except IndexError:
+        pass
+    try:
+        source_dr_copy['drSite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0].pop('isValid')
+    except IndexError:
+        pass
+
     data = {
         "name": name,
         "description": name,
@@ -224,15 +231,31 @@ if __name__ == '__main__':
     # apps = get_applications('phase_2_profile_3')
     # for app in apps:
     #     status_code = copy_dr(source_dr, app)
-
-    # create profile 2
+    #
+    # # create profile 2
     # source_dr = get_dr_plans(name='profile_2_app_175-dr_plan')[0]
     # apps = get_applications('phase_2_profile_2')
     # for app in apps:
     #     status_code = copy_dr(source_dr, app)
+    #
+    # # create profile cdp
+    # source_dr = get_dr_plans(name='profile_cdp_2_app_4-dr_plan')[0]
+    # apps = get_applications('phase_2_profile_cdp')
+    # for app in apps:
+    #     status_code = copy_dr(source_dr, app)
 
-    # create profile cdp
-    source_dr = get_dr_plans(name='profile_cdp_2_app_4-dr_plan')[0]
-    apps = get_applications('phase_2_profile_cdp')
+    # create profile 1
+    source_dr = get_dr_plans(name='phase_2_profile_1_demo')[0]
+    apps = get_applications('phase_2_profile_1')
+    counter = 0
     for app in apps:
         status_code = copy_dr(source_dr, app)
+        if status_code == 201:
+            counter += 1
+            if counter >=6:
+                break
+
+    # # delete phase_2
+    # plans = get_dr_plans(name='phase_2')
+    # for plan in plans:
+    #     delete_dr_plan(dr_id=plan.get('id'))

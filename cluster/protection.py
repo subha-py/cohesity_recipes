@@ -31,10 +31,11 @@ def get_protection_info(protection_name):
     # todo clean up headers with a method
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
+    headers = get_headers()
     response = requests.request("GET",
                                 "https://{}/irisservices/api/v1/public/protectionJobs?names={}".format(cluster_ip,
                                                                                                   protection_name),
-                                verify=False, headers=get_headers())
+                                verify=False, headers=headers)
     if response.status_code == 200:
         res = response.json()
         if res:
@@ -288,7 +289,6 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
             print("deleted protection group - {}".format(pg))
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.199.77")
     # pause_protection_job('subha_LCMTestBucket_Object_1')
     # pgs = get_all_cluster_protection_jobs()
     # pg_name_list = []
@@ -302,5 +302,8 @@ if __name__ == '__main__':
     # for bucket in buckets[:4]:
     #     run_bucket_protection(bucket)
 
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.5")
-    cancel_pending_protection_job_runs(pgs=['profile_1_pg'], pause=True)
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.197.99")
+    # print(os.environ.get('node_ips'))
+    # info = get_protection_info('sync-200GB-replication-sachin')
+    # print(info)
+    cancel_pending_protection_job_runs(pgs=['ak_test_replication_only'], pause=True, delete_pg=False)

@@ -58,8 +58,8 @@ def get_node_ips(cluster_ip, username="admin", password="Syst7mt7st", domain="lo
         return None
 
 def setup_cluster_automation_variables_in_environment(cluster_ip, username="admin", password="Syst7mt7st", domain="local"):
-    get_access_token(cluster_ip,username,password,domain)
-    get_access_keys(cluster_ip, domain)
+    # get_access_token(cluster_ip,username,password,domain)
+    # get_access_keys(cluster_ip, domain)
     get_node_ips(cluster_ip)
 
 def get_client_cycle():
