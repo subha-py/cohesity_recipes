@@ -1,7 +1,9 @@
 import os
 
 import requests
+
 from site_continuity.connection import get_base_url, get_headers, set_environ_variables
+
 
 def get_sites(name=None):
     ip = os.environ.get('ip')
@@ -17,6 +19,7 @@ def get_sites(name=None):
     else:
         print("Unsuccessful to get applications info - {}".format(response.status_code))
         return None
+
 
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'

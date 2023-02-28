@@ -1,12 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import boto3
-
-# import logging
-import time
-from botocore.config import Config
 import random
-import ssl
+
+import boto3
+# import logging
+from botocore.config import Config
+
 access_key = "3_PFcp4W8hhX4B9Q8csnTgUSt5th7TcxAgfwONBAwxM"
 secret_access_key = "EjvB-J89QcUFVPLXu1aORCQM-4oYW4QMVmiCr2eeQJs"
 endpoint = "https://10.14.29.182:3000"

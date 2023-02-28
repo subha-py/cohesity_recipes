@@ -1,22 +1,28 @@
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+import os
+
 import requests
 import urllib3
-import os
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from cluster.connection import setup_cluster_automation_variables_in_environment, get_base_url, get_headers
+from cluster.connection import get_base_url, get_headers
 from cluster.protection import get_protection_info
 
 from site_continuity.connection import get_helios_url, set_environ_variables, get_headers as site_con_headers
+
+
 def get_protected_vm_info(vm_name, vc_id):
-    response = requests.request("GET", "{base_url}/protectionSources/virtualMachines?vCenterId={vcentre_id}&names={vm_name}&protected=true".
+    response = requests.request("GET",
+                                "{base_url}/protectionSources/virtualMachines?vCenterId={vcentre_id}&names={vm_name}&protected=true".
                                 format(base_url=get_base_url(), vm_name=vm_name, vcentre_id=vc_id),
                                 verify=False, headers=get_headers())
 
     response = response.json()
     if response:
         return response[0]
+
 
 def get_vm_protection_info(vm_name=None, vc_id=None, vm_id=None):
     if vm_id is None:
@@ -36,11 +42,13 @@ def get_vm_protection_info(vm_name=None, vc_id=None, vm_id=None):
         protection_info = get_protection_info(jobName)
         return protection_info
 
+
 def generate_vm_names(prefix, count, start_index):
     names = []
-    for val in range(start_index, start_index+count):
-        names.append("{prefix}{val}".format(prefix=prefix,val=val))
+    for val in range(start_index, start_index + count):
+        names.append("{prefix}{val}".format(prefix=prefix, val=val))
     return names
+
 
 def get_vc_id(name, first=True):
     # https://helios-sandbox.cohesity.com/v2/mcm/data-protect/sources?excludeProtectionStats=true&environments=kVMware
@@ -59,10 +67,12 @@ def get_vc_id(name, first=True):
                 # if 'vc03' in name:
                 #     return source['sourceInfoList'][-1]['sourceId'] # when vc_03 is dest
 
-                return source['sourceInfoList'][0]['sourceId'] # when vc_02 as source
+                return source['sourceInfoList'][0]['sourceId']  # when vc_02 as source
+
 
 def get_vm_source_ids_from_pg(pg_name):
     return get_protection_info(pg_name)['sourceIds']
+
 
 if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'

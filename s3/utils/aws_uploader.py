@@ -1,23 +1,26 @@
-import argparse
-import boto3
-from botocore.config import Config
-import os
-import threading
 import hashlib
-from boto3.s3.transfer import TransferConfig
+import os
 from enum import Enum
-from s3.utils.aws_highlvlapi.aws_transfer_manager import TransferCallback as aws_TransferCallback
 from urllib.parse import urlparse
+
+import boto3
+from boto3.s3.transfer import TransferConfig
+from botocore.config import Config
+
+from s3.utils.aws_highlvlapi.aws_transfer_manager import TransferCallback as aws_TransferCallback
+
 
 def get_awsUploader(args):
     if args.awsprofile is not None:
-        return AwsS3Uploader(access_key=args.access_key,secret_access_key=args.secret_access_key, aws_profile=args.awsprofile)
+        return AwsS3Uploader(access_key=args.access_key, secret_access_key=args.secret_access_key,
+                             aws_profile=args.awsprofile)
     # else:
     #     return AwsS3Uploader(multipart_limit_size_mib=512)
 
 
 class AwsS3Uploader:
-    def __init__(self, access_key,secret_access_key,endpoint,multipart_limit_size_mib=512, aws_profile=None):  # old size = 4096
+    def __init__(self, access_key, secret_access_key, endpoint, multipart_limit_size_mib=512,
+                 aws_profile=None):  # old size = 4096
         self.file_parts = []
 
         # self.s3_resource = boto3.resource('s3')
@@ -58,8 +61,8 @@ class AwsS3Uploader:
         object_key = os.path.basename(origin_path)
 
         # == Upload ==
-        #callback = aws_TransferCallback(get_fileSize(origin_path))
-        #config = TransferConfig(multipart_threshold=self.multipart_limit_size)
+        # callback = aws_TransferCallback(get_fileSize(origin_path))
+        # config = TransferConfig(multipart_threshold=self.multipart_limit_size)
 
         prefix = self.__get_file_key(dest_path)
         if len(prefix) == 0:
@@ -69,8 +72,8 @@ class AwsS3Uploader:
             origin_path,
             self.__get_bucketname(dest_path),
             prefix,
-            #Config=config,
-            #Callback=callback
+            # Config=config,
+            # Callback=callback
         )
 
         # == Validate ==
@@ -272,6 +275,7 @@ class Chunk:
         self.md5_bytes = get_md5(self.path, returnHex=False)
         # change status
         self.status = ChunkStatus.CREATED
+
     def destroy(self):
         os.remove(self.path)
 
@@ -281,6 +285,7 @@ class Chunk:
             return True
         else:
             return False
+
 
 def get_fileSize(file_path):
     """
@@ -302,6 +307,3 @@ def get_md5(file_path, chunk_size=104857600, returnHex=True):
         return file_hash.hexdigest()
     else:
         return file_hash.digest()
-
-
-

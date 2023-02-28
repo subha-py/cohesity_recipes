@@ -12,8 +12,6 @@ import sys
 import threading
 
 import boto3
-from boto3.s3.transfer import TransferConfig
-
 
 s3 = boto3.resource('s3')
 

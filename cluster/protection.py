@@ -1,20 +1,17 @@
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import requests
 import urllib3
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-import sys
 import os
 import time
 from itertools import cycle
 import random
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_headers
-from multiprocessing import Pool, cpu_count
-from s3.utils.bucket import (
-    get_buckets_from_prefix,
-)
 import concurrent.futures
+
 
 def get_bucket_info(bucket_name):
     # todo clean up headers with a method
@@ -27,6 +24,7 @@ def get_bucket_info(bucket_name):
     if response.status_code == 200:
         return response.json()['views'][0]
 
+
 def get_protection_info(protection_name):
     # todo clean up headers with a method
     ips = os.environ.get("node_ips").split(",")
@@ -34,7 +32,7 @@ def get_protection_info(protection_name):
     headers = get_headers()
     response = requests.request("GET",
                                 "https://{}/irisservices/api/v1/public/protectionJobs?names={}".format(cluster_ip,
-                                                                                                  protection_name),
+                                                                                                       protection_name),
                                 verify=False, headers=headers)
     if response.status_code == 200:
         res = response.json()
@@ -42,7 +40,6 @@ def get_protection_info(protection_name):
             return res[0]
         else:
             return False
-
 
 
 def get_view_box_info(viewbox_name):
@@ -55,6 +52,8 @@ def get_view_box_info(viewbox_name):
                                 verify=False, headers=get_headers())
     if response.status_code == 200:
         return response.json()[0]
+
+
 def get_policy_info(policy_name):
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
@@ -66,21 +65,22 @@ def get_policy_info(policy_name):
     if response.status_code == 200:
         return response.json()[0]
 
-def process_protection_request(bucket_name, ip, policy_id, effective_now, protection_group_prefix = "s3-test-",
+
+def process_protection_request(bucket_name, ip, policy_id, effective_now, protection_group_prefix="s3-test-",
                                force=False):
     try:
         bucket_info = get_bucket_info(bucket_name)
         if not force and bucket_info.get('viewProtection'):
             print("bucket: {} is already protected".format(bucket_name))
             return
-        pg_name = "{}{}".format(protection_group_prefix ,bucket_info['name'])
+        pg_name = "{}{}".format(protection_group_prefix, bucket_info['name'])
         if 'Object' not in pg_name:
             indexing_policy = {
-                  "disableIndexing": False,
-                  "allowPrefixes": [
+                "disableIndexing": False,
+                "allowPrefixes": [
                     "/"
-                  ]
-                }
+                ]
+            }
         else:
             indexing_policy = {
                 "disableIndexing": True,
@@ -93,17 +93,17 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
             "sourceIds": [
                 bucket_info['viewId']
             ],
-            "startTime":{
-              "hour": 23,
-              "minute": 28
+            "startTime": {
+                "hour": 23,
+                "minute": 28
             },
             "timezone": "Asia/Calcutta",
             "indexingPolicy": indexing_policy,
             "remoteViewConfigList": [
-              {
-                "sourceViewId": bucket_info['viewBoxId'],
-                "useSameViewName": True
-              }
+                {
+                    "sourceViewId": bucket_info['viewBoxId'],
+                    "useSameViewName": True
+                }
             ]
 
         }
@@ -126,6 +126,7 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
     except Exception as ex:
         print("Could not create pg due to - {}".format(ex))
 
+
 # todo replace policy id with name
 
 def get_all_cluster_protection_jobs():
@@ -136,6 +137,8 @@ def get_all_cluster_protection_jobs():
                                     ip), verify=False,
                                 headers=get_headers())
     return response.json()
+
+
 def delete_protection_group(pg_name):
     info = get_protection_info(pg_name)
     ips = os.environ.get("node_ips").split(",")
@@ -151,6 +154,8 @@ def delete_protection_group(pg_name):
         print("deletion of protection group - {} is successful".format(pg_name))
     else:
         print("deletion of protection group - {} is unsuccessful".format(pg_name))
+
+
 def unprotect_all_buckets(buckets):
     for bucket in buckets:
         print("working on bucket - {}".format(bucket))
@@ -161,10 +166,13 @@ def unprotect_all_buckets(buckets):
         ips = os.environ.get("node_ips").split(",")
         ip = random.choice(ips)
         for bucketProtection in bucketProtections:
-            if bucketProtection.get("jobName").startswith("_DELETED"): # after deletion of a pg it named as DELETED_pg_name
+            if bucketProtection.get("jobName").startswith(
+                    "_DELETED"):  # after deletion of a pg it named as DELETED_pg_name
                 # todo: is this a bug investigate
                 continue
             delete_protection_group(bucketProtection.get("jobName"))
+
+
 def run_protection_group(protection_name=None, protection_id=None):
     if not protection_id:
         res = get_protection_info(protection_name)
@@ -185,6 +193,7 @@ def run_protection_group(protection_name=None, protection_id=None):
         print(response)
         return False
 
+
 def run_bucket_protection(bucket_name):
     bucket_info = get_bucket_info(bucket_name)
     if bucket_info.get('viewProtection'):
@@ -194,7 +203,9 @@ def run_bucket_protection(bucket_name):
     else:
         print("Bucket is not protected")
 
-def create_protection(bucket_list, policy_id=None, policy_id_list=None, effective_now=True, force=False, prefix="subha_"):
+
+def create_protection(bucket_list, policy_id=None, policy_id_list=None, effective_now=True, force=False,
+                      prefix="subha_"):
     print("got buckets - {}".format(len(bucket_list)))
     ips = os.environ.get("node_ips").split(",")
     ip_cycle = cycle(ips)
@@ -207,6 +218,7 @@ def create_protection(bucket_list, policy_id=None, policy_id_list=None, effectiv
     # pool.close()
     # pool.join()
 
+
 def pause_protection_job(pg_name):
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
@@ -214,9 +226,9 @@ def pause_protection_job(pg_name):
     if not info:
         return
     data = {
-          "pause": True,
-          "pauseReason": 0
-        }
+        "pause": True,
+        "pauseReason": 0
+    }
     response = requests.request("POST",
                                 "https://{}/irisservices/api/v1/public/protectionJobState/{}".format(
                                     ip, info['id']),
@@ -226,6 +238,7 @@ def pause_protection_job(pg_name):
         print("Successfully paused pg - {}".format(pg_name))
     else:
         print("pausing pg is unsuccessful - {} - on ip - {}".format(pg_name, ip))
+
 
 def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread_num=None):
     def cancel_pending_runs_of_pg(pg, delete_pg, pause):
@@ -277,7 +290,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
     thread = os.environ.get("node_ips").count(",")
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(pgs), thread)) as executor:
         for pg in pgs:
-            arg = (pg,delete_pg, pause)
+            arg = (pg, delete_pg, pause)
             future_to_pg[executor.submit(cancel_pending_runs_of_pg, *arg)] = pg
     for future in concurrent.futures.as_completed(future_to_pg):
         pg = future_to_pg[future]
@@ -287,6 +300,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
             print("%r generated an exception: %s" % (pg, exc))
         else:
             print("deleted protection group - {}".format(pg))
+
 
 if __name__ == '__main__':
     # pause_protection_job('subha_LCMTestBucket_Object_1')

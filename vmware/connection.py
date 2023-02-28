@@ -1,7 +1,8 @@
-from pyVim.connect import SmartConnect, Disconnect
-import sys
-import ssl
 import atexit
+import ssl
+import sys
+
+from pyVim.connect import SmartConnect, Disconnect
 from pyVmomi import pbm, vim, VmomiSupport, SoapStubAdapter
 
 if sys.version[0] < '3':
@@ -39,6 +40,7 @@ def get_service_instance(system_info):
 
     atexit.register(Disconnect, si)
     return si
+
 
 def get_cluster_cr(system_info=None, si=None):
     """
@@ -104,6 +106,7 @@ def get_vms_from_dc(system_info, names=None):
 
     return result
 
+
 def get_vms_from_dc_with_prefix(system_info, prefix=None, datacentre=None):
     si = get_service_instance(system_info)
     content = si.RetrieveContent()
@@ -135,6 +138,7 @@ def get_vms_from_dc_with_prefix(system_info, prefix=None, datacentre=None):
 
     return result
 
+
 def get_witness_host_from_dc(system_info):
     si = get_service_instance(system_info)
     content = si.RetrieveContent()
@@ -164,8 +168,9 @@ def getAddedHosts(system_info, names=None):
         hosts.append(obj.host[0])
     return hosts
 
+
 def get_host_from_dc(system_info, names=None):
-    hosts =  get_cluster_cr(system_info).host
+    hosts = get_cluster_cr(system_info).host
     result = []
     for host in hosts:
         if names:
@@ -210,19 +215,22 @@ def pbm_connect(stub_adapter, disable_ssl_verification=False):
     pbm_content = pbm_si.RetrieveContent()
     return pbm_content
 
+
 def get_pbm_manager(system_info):
     si = get_service_instance(system_info)
     pbm_content = pbm_connect(si._stub, True)
     pm = pbm_content.profileManager
     return pm
 
-def find_by_moid(system_info,moid):
+
+def find_by_moid(system_info, moid):
     si = get_service_instance(system_info)
     vm = vim.VirtualMachine(moid)
     vm._stub = si._stub
     return vm
 
+
 if __name__ == '__main__':
-    system_info = {'host':'system-test-vc02.qa01.eng.cohesity.com'}
-    vm = find_by_moid(system_info,'vm-18537')
+    system_info = {'host': 'system-test-vc02.qa01.eng.cohesity.com'}
+    vm = find_by_moid(system_info, 'vm-18537')
     print(vm.guest.ipAddress)

@@ -1,8 +1,8 @@
 import boto3
 from botocore.config import Config
-from botocore import exceptions
 
-def get_s3_client(endpoint, access_key,secret_access_key):
+
+def get_s3_client(endpoint, access_key, secret_access_key):
     config = Config(retries={"max_attempts": 5, "mode": "standard"})
     try:
         client = boto3.client(
@@ -18,8 +18,10 @@ def get_s3_client(endpoint, access_key,secret_access_key):
         return
     return client
 
+
 def get_endpoint(ip):
     return "https://{}:3000".format(ip)
+
 
 def get_s3_resource(endpoint, access_key, secret_access_key):
     config = Config(retries={"max_attempts": 5, "mode": "standard"})

@@ -1,12 +1,10 @@
 # step: 1 discover files in folder /home/cohesity/FioScripts with *fio
 # step: 2 run fio in parallel
 
-from multiprocessing import Pool, cpu_count
-from multiprocessing.dummy import Pool as ThreadPool
-import time
-import random
 import os
 import subprocess
+from multiprocessing.dummy import Pool as ThreadPool
+
 
 def get_files_with_extension(directory, extension=None):
     files = os.listdir(directory)
@@ -21,8 +19,10 @@ def get_files_with_extension(directory, extension=None):
 def get_fio_jobs(path="/home/cohesity/FioScripts"):
     return get_files_with_extension(path, '.job')
 
+
 def get_fio_files(path="/home/cohesity/FioFiles"):
-   return get_files_with_extension(path)
+    return get_files_with_extension(path)
+
 
 def run_fio_command(fio_job_file):
     process = subprocess.Popen(['fio', fio_job_file],
@@ -41,6 +41,7 @@ def run_fio_command(fio_job_file):
                 print(output.strip())
             break
 
+
 def run_fio_jobs_in_parallel(fio_files, count=0):
     pool = ThreadPool(len(fio_files))
     results = pool.map(run_fio_command, fio_files)
@@ -49,8 +50,9 @@ def run_fio_jobs_in_parallel(fio_files, count=0):
     print("Count - {}".format(count))
     return
 
+
 if __name__ == '__main__':
     count = 0
     while True:
-        run_fio_jobs_in_parallel(get_fio_jobs(),count=count)
+        run_fio_jobs_in_parallel(get_fio_jobs(), count=count)
         count += 1

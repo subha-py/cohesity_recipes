@@ -1,15 +1,18 @@
-import random
-from s3.utils.aws_highlvlapi.aws_transfer_manager import TransferCallback as aws_TransferCallback
 import os
-from boto3.s3.transfer import TransferConfig
-from s3.utils.aws_uploader import Chunk
-import string
-from files.fio import get_fio_files
-from multiprocessing import Pool, cpu_count
-from s3.utils.objects import put_random_object_tags, get_random_object_keys
-from s3.utils.connector import get_s3_client, get_endpoint
-from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle, get_resource_cycle
+import random
 import shutil
+import string
+from multiprocessing import Pool, cpu_count
+
+from boto3.s3.transfer import TransferConfig
+
+from cluster.connection import setup_cluster_automation_variables_in_environment, get_client_cycle, get_resource_cycle
+from files.fio import get_fio_files
+from s3.utils.aws_highlvlapi.aws_transfer_manager import TransferCallback as aws_TransferCallback
+from s3.utils.aws_uploader import Chunk
+from s3.utils.objects import put_random_object_tags, get_random_object_keys
+
+
 def get_buckets_from_prefix(client, prefix, count=0):
     """
     
@@ -31,6 +34,7 @@ def get_buckets_from_prefix(client, prefix, count=0):
             break
     return result
 
+
 def get_fileSize(file_path):
     """
     Get the size of a file and return in Bytes
@@ -48,13 +52,14 @@ def upload_simple_multi_part(client, local_file_path, bucket, remote_file_path):
                        Callback=callback)
 
 
-def start_multipart_upload(client,bucket, dest_path):
+def start_multipart_upload(client, bucket, dest_path):
     multipart_meta = client.create_multipart_upload(
         Bucket=bucket,
         Key=dest_path,
     )
 
     return multipart_meta
+
 
 def upload_multipart_part(client, upload_meta, chunk):
     with open(chunk.path, 'rb') as reader:
@@ -81,7 +86,7 @@ def abort_multipart_upload(client, upload_meta):
     )
 
 
-def complete_multipart_upload(client,upload_meta, chunks):
+def complete_multipart_upload(client, upload_meta, chunks):
     # == Create multipart upload dict ==
     part_dict = {
         'Parts': []
@@ -103,6 +108,7 @@ def complete_multipart_upload(client,upload_meta, chunks):
         MultipartUpload=part_dict
     )
     return response
+
 
 def upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_file_path, chunk_size_mib=4):
     # Init multi-part upload
@@ -126,9 +132,11 @@ def upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_
             chunk = Chunk(chunk_path, chunk_part, chunk_size_bytes=chunk_size_bytes)
             chunk.create_chunk(local_file)
             chunks.append(chunk)
-            print('uploading[id: {}] chunk {}:{} to {} - with chunksize - {}mib'.format(multipart_meta['UploadId'], os.path.basename(local_file), chunk_part,
-                                                                                bucket_name, chunk_size_mib,
-                                                                                ))
+            print('uploading[id: {}] chunk {}:{} to {} - with chunksize - {}mib'.format(multipart_meta['UploadId'],
+                                                                                        os.path.basename(local_file),
+                                                                                        chunk_part,
+                                                                                        bucket_name, chunk_size_mib,
+                                                                                        ))
             upload_multipart_part(next(client_list_cycle), multipart_meta, chunk)
             # update read position and chunk part
             read_pos += chunk_size_bytes
@@ -140,26 +148,30 @@ def upload_custom_multi_part(client_list_cycle, bucket_name, local_file, remote_
 
     except Exception as ex:
         # Cleanup multipart upload if exception
-        print("Something went wrong while uploading file - {} - {} - details - {}".format(bucket_name, ex, multipart_meta))
+        print("Something went wrong while uploading file - {} - {} - details - {}".format(bucket_name, ex,
+                                                                                          multipart_meta))
         abort_multipart_upload(next(client_list_cycle), multipart_meta)
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
+
 def create_random_prefix():
-    chars = list(string.ascii_letters)[:-6] # last six are tabs, binary sign
-    depth = random.randint(1,256)
+    chars = list(string.ascii_letters)[:-6]  # last six are tabs, binary sign
+    depth = random.randint(1, 256)
     prefix = []
     for _ in range(depth):
         prefix.append(random.choice(chars))
     return '/'.join(prefix)
 
+
 def create_random_filename():
-    chars = list(string.ascii_letters)[:-6] # last six are tabs, binary sign
-    file_name_size = random.randint(1,256)
+    chars = list(string.ascii_letters)[:-6]  # last six are tabs, binary sign
+    file_name_size = random.randint(1, 256)
     result = []
     for _ in range(file_name_size):
         result.append(random.choice(chars))
     result.append('.sb')
     return ''.join(result)
+
 
 def upload_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFiles", chunksizes=None):
     client_list_cycle = get_client_cycle()
@@ -170,10 +182,11 @@ def upload_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFiles
     for file in files_to_upload:
         prefix = create_random_prefix()
         remote_file_name = create_random_filename()
-        remote_file_path = "{}/{}".format(prefix,remote_file_name)
+        remote_file_path = "{}/{}".format(prefix, remote_file_name)
         upload_custom_multi_part(client_list_cycle, bucket_name, file, remote_file_path, random.choice(chunksizes))
         print(f"file - {file} is suceesfully uploaded to - {bucket_name}:{remote_file_path}")
         put_random_object_tags(client_list_cycle, bucket_name, [remote_file_path])
+
 
 def upload_files_in_buckets(buckets, local_directory="/home/cohesity/FioFiles", chunksizes=None):
     pool = Pool(processes=cpu_count() - 1)
@@ -183,6 +196,7 @@ def upload_files_in_buckets(buckets, local_directory="/home/cohesity/FioFiles", 
     pool.close()
     pool.join()
     return
+
 
 def overwrite_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFiles", chunksizes=None):
     client_list_cycle = get_client_cycle()
@@ -196,12 +210,14 @@ def overwrite_files_in_bucket(bucket_name, local_directory="/home/cohesity/FioFi
         print(f"file - {file} is sucessfully overwritten to - {bucket_name}:{remote_file_path}")
         put_random_object_tags(bucket_name, [remote_file_path])
 
+
 def get_s3_bucket_obj(bucket_name, resource=None):
     if not resource:
         resource_cycle = get_resource_cycle()
         resource = next(resource_cycle)
     bucket = resource.Bucket(bucket_name)
     return bucket
+
 
 def list_multipart_upload(bucket, client=None):
     if not client:
@@ -210,6 +226,7 @@ def list_multipart_upload(bucket, client=None):
     res = client.list_multipart_uploads(Bucket=bucket)
     return res
 
+
 def get_bucket_objs(bucket_name):
     resource_cycle = get_resource_cycle()
     resource = next(resource_cycle)
@@ -217,9 +234,8 @@ def get_bucket_objs(bucket_name):
     return bucket.objects.all()
 
 
-
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33",)
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.33", )
     client_cycle = get_client_cycle()
     buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Object_6")
     bucket = get_s3_bucket_obj(bucket_name=buckets[0])
