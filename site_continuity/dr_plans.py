@@ -19,9 +19,9 @@ def get_dr_plans(name=None, params=None):
     ip = os.environ.get('ip')
     if name is not None:
         if params is not None:
-            params['names'] = name
+            params['drPlanNames'] = name
         else:
-            params = {'names': name}
+            params = {'drPlanNames': name}
     response = requests.request("GET", "{base_url}/dr-plans".format(base_url=get_base_url(ip)), verify=False,
                                 headers=get_headers(), params=params)
     if response.status_code == 200:
@@ -196,7 +196,7 @@ def delete_dr_plan(dr_plan_name=None, dr_id=None):
         return response
 
 
-def copy_dr(source_dr, app):
+def copy_dr(source_dr, app, static=False, source_vc='10.14.22.105'):
     name = '{}-dr_plan'.format(app.get('name'))
     app_id = app.get('id')
     source_dr_copy = copy.deepcopy(source_dr)
@@ -208,6 +208,33 @@ def copy_dr(source_dr, app):
         source_dr_copy['drSite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0].pop('isValid')
     except IndexError:
         pass
+    if static:
+        source_static_config = \
+        source_dr['drSite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0]['ipConfig'][
+            'staticConfig'] \
+            ['manualIpConfig']['manualObjectLevelConfig']
+        dest_static_config = \
+        source_dr['primarySite']['source']['vmwareParams']['vCenterParams']['resourceProfiles'][0]['ipConfig'][
+            'staticConfig'] \
+            ['manualIpConfig']['manualObjectLevelConfig']
+        virtual_machines = app.get('latestAppVersion').get('spec').get('components')[0].get('objectParams')
+        for index, vm in enumerate(virtual_machines):
+            vm_id = vm.get('id')
+            response = requests.request('GET', "{base_url}/protectionSources/objects/{vm_id}".format(
+                base_url=cohesity_base_url(),
+                vm_id=vm_id
+            ), headers=get_cohesity_headers(), verify=False)
+            if response.status_code == 200:
+                vm_moid = response.json().get('vmWareProtectionSource').get('id').get('morItem')
+                system_info = {'host': source_vc}
+                vmref = find_by_moid(system_info, vm_moid)
+                ip_addr = vmref.guest.ipAddress
+                if not ip_addr:
+                    print("Vm - {} doesn't have any ip address".format(vmref.name))
+                    return
+            else:
+                raise AttributeError('Could not find vm_moid for vm - {}'.format(vm_id))
+            source_static_config[index]['ipAddress'] = ip_addr
 
     data = {
         "name": name,
@@ -246,8 +273,10 @@ if __name__ == '__main__':
     ip = 'helios-sandbox.cohesity.com'
     set_environ_variables({'ip': ip})
     setup_cluster_automation_variables_in_environment('10.14.7.5')
-    # create profile 3
-    source_dr = get_dr_plans(name='profile_3_app_73-dr_plan')[0]
-    apps = get_applications('phase_2_profile_3')
-    for app in apps:
-        status_code = copy_dr(source_dr, app)
+
+    save_list = ['phase_2_profile_1_app_67-dr_plan', 'phase_2_profile_2_app_103-dr_plan', 'phase_2_profile_3_app_1-dr_plan']
+    apps = get_applications(name='phase_2_profile_3')
+    source_dr = get_dr_plans(name='phase_2_profile_3_app_1-dr_plan')[0]
+    for i in range(0,20):
+        app = apps[i]
+        copy_dr(source_dr=source_dr,app=app,static=True)

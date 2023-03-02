@@ -16,7 +16,7 @@ def get_helios_url(ip):
 
 
 def get_base_url(ip):
-    return "{helios_url}/site-continuity/2.0".format(helios_url=get_helios_url(ip))
+    return "{helios_url}/site-continuity/v2".format(helios_url=get_helios_url(ip))
 
 
 def set_environ_variables(dictionary):

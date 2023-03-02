@@ -13,7 +13,7 @@ def get_applications(name=None):
     ip = os.environ.get('ip')
     params = None
     if name is not None:
-        params = {'names': name}
+        params = {'appNames': name}
     response = requests.request("GET", "{base_url}/applications".format(base_url=get_base_url(ip)), verify=False,
                                 headers=get_headers(), params=params)
     if response.status_code == 200:
