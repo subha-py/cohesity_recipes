@@ -275,8 +275,8 @@ if __name__ == '__main__':
     setup_cluster_automation_variables_in_environment('10.14.7.5')
 
     save_list = ['phase_2_profile_1_app_67-dr_plan', 'phase_2_profile_2_app_103-dr_plan', 'phase_2_profile_3_app_1-dr_plan']
-    apps = get_applications(name='phase_2_profile_3')
-    source_dr = get_dr_plans(name='phase_2_profile_3_app_1-dr_plan')[0]
-    for i in range(0,20):
+    apps = get_applications(name='phase_2_profile_cdp')
+    source_dr = get_dr_plans(name='profile_cdp_1_app_1-dr_plan')[0]
+    for i in range(0,len(apps)):
         app = apps[i]
-        copy_dr(source_dr=source_dr,app=app,static=True)
+        copy_dr(source_dr=source_dr,app=app,static=False)
