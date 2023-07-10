@@ -44,6 +44,9 @@ def get_access_keys(cluster_ip, username="admin", password="Syst7mt7st", domain=
 
 
 def get_node_ips(cluster_ip, username="admin", password="Syst7mt7st", domain="local", access_token=None):
+    # node_ip_string = '10.14.7.11,10.14.7.12'
+    # os.environ.setdefault("node_ips", node_ip_string)
+    # return node_ip_string
     headers = {'Content-Type': "application/json", 'accept': "application/json"}
     if not access_token:
         access_token = os.environ.get("accessToken")
@@ -69,8 +72,8 @@ def get_node_ips(cluster_ip, username="admin", password="Syst7mt7st", domain="lo
 
 def setup_cluster_automation_variables_in_environment(cluster_ip, username="admin", password="Syst7mt7st",
                                                       domain="local"):
-    # get_access_token(cluster_ip,username,password,domain)
-    # get_access_keys(cluster_ip, domain)
+    get_access_token(cluster_ip,username,password,domain)
+    get_access_keys(cluster_ip, domain)
     get_node_ips(cluster_ip)
 
 

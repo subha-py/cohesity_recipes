@@ -2,8 +2,23 @@
 #
 # Author : Pramod Mandagere (pramod@cohesity.com)
 # This file simulates typical ransomware behavior.
-import argparse
+
+import logging
 import os
+import datetime
+# Create a custom logger
+logFormat = ('%(asctime)s [%(filename)s:%(lineno)s.%(threadName)s] %(message)s')
+formatter = logging.Formatter(logFormat)
+time = datetime.datetime.now()
+file_name = os.path.join(os.getcwd(), 'simulate-{}.log'.format(time.strftime("%m-%d-%Y_%H-%M-%S")))
+logging.basicConfig(level=logging.INFO, format=logFormat)
+logger = logging.getLogger('simulate')
+fileHandler = logging.FileHandler(filename=file_name)
+fileHandler.setLevel(logging.INFO)
+fileHandler.setFormatter(formatter)
+logger.addHandler(fileHandler)
+
+import argparse
 import pickle
 import random
 import requests
@@ -11,6 +26,7 @@ import shutil
 import string
 import time
 import zipfile
+import threading
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from pathlib import Path
@@ -81,15 +97,21 @@ class Simulation(object):
     # Starts simulation process.
     def start_regular_simulation(self):
         # Download static content for use in simulation.
-        print("Downloading content for use in simulation")
+        logger.info(f"{self.vm_name} - Downloading content for use in simulation")
         for data_directory in self.data_dirs:
             if Path(data_directory).exists():
-                shutil.rmtree(data_directory)
-            os.makedirs(data_directory)
+                try:
+                    shutil.rmtree(data_directory)
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    pass
+            if not Path(data_directory).exists():
+                os.makedirs(data_directory)
 
         download_success = download_static_content(self.content_url, self.external_content_url)
         if not download_success:
-            print("Error downloading sample data, please ensure outbound network access is available and re-run")
+            logger.info(f"{self.vm_name} - Error downloading sample data, please ensure outbound network access is available and re-run")
             return
         copy_pii_data(self.data_dirs)
         time.sleep(60)
@@ -97,14 +119,13 @@ class Simulation(object):
         if os.name != 'nt':
             # Sync the writes.
             os.sync()
-
-        print("Creating first full backup")
+        logger.info(f"{self.vm_name} - Creating first full backup")
         job = self._create_protection_job()
         if job is None:
-            print("Error creating job...aborting")
+            logger.info(f"{self.vm_name} - Error creating job...aborting")
             return
         self.job_id = job.id
-        print("Job id is {0} ".format(self.job_id))
+        logger.info(f"{self.vm_name} - Job id is {self.job_id} ")
 
         # A protection job run isn't always scheduled directly after creating
         # the job. Try triggering it.
@@ -119,13 +140,13 @@ class Simulation(object):
                     body=req_body)
                 break
             except Exception as e:
-                print("Exception in calling create_run_protection_job", e)
+                logger.info(f"{self.vm_name} - Exception in calling create_run_protection_job", e)
                 time.sleep(5)
                 continue
 
         status = self._wait_for_run_completion()
         if not status:
-            print("Job {0} failed".format(self.job_name))
+            logger.info(f"{self.vm_name} - Job {0} failed".format(self.job_name))
             return
 
         num_backups = 17
@@ -133,7 +154,7 @@ class Simulation(object):
         req_body = ProtectionJobRequestBody()
         req_body.run_type = RunTypeEnum.KREGULAR
 
-        print("Starting baseline workload")
+        logger.info(f"{self.vm_name} - Starting baseline workload")
         while i < num_backups:
             simulate_regular_update(self.data_dirs)
             copy_static_content(self.data_dirs)
@@ -142,7 +163,7 @@ class Simulation(object):
                 # Sync the writes.
                 os.sync()
 
-            print("Creating new backup run_{0}".format(i))
+            logger.info(f"{self.vm_name} - Creating new backup run_{0}".format(i))
             retry=RETRY_COUNT
             while(retry>0):
                 try:
@@ -153,16 +174,16 @@ class Simulation(object):
                         body=req_body)
                     break
                 except Exception as e:
-                    print("Exception in calling create_run_protection_job", e)
+                    logger.info(f"{self.vm_name} - Exception in calling create_run_protection_job", e)
                     time.sleep(5)
                     continue
             status = self._wait_for_run_completion()
             if not status:
-                print("Error with backup run, please retry")
+                logger.info(f"{self.vm_name} - Error with backup run, please retry")
                 return
             i = i + 1
 
-        print("Starting simulation workload")
+        logger.info(f"{self.vm_name} - Starting simulation workload")
 
         encrypt(self.data_dirs)
 
@@ -170,7 +191,7 @@ class Simulation(object):
             # Sync the writes.
             os.sync()
 
-        print("Creating new backup run post simulation")
+        logger.info(f"{self.vm_name} - Creating new backup run post simulation")
         retry=RETRY_COUNT
         while(retry>0):
             try:
@@ -180,20 +201,20 @@ class Simulation(object):
                     body=req_body)
                 break
             except Exception as e:
-                print("Exception in calling create_run_protection_job", e)
+                logger.info(f"{self.vm_name} - Exception in calling create_run_protection_job", e)
                 time.sleep(5)
                 continue
         status = self._wait_for_run_completion()
         if not status:
-            print("Error with backup run, please retry")
+            logger.info(f"{self.vm_name} - Error with backup run, please retry")
             return
-        print("Simulation complete")
+        logger.info(f"{self.vm_name} - Simulation complete")
 
         # Starts simulation process.
     def start_fast_simulation(self):
-        print("Verifying cluster version... ")
+        logger.info(f"{self.vm_name} - Verifying cluster version... ")
         self._verify_cluster_version()
-        print("Downloading content for use in simulation")
+        logger.info(f"{self.vm_name} - Downloading content for use in simulation")
         for data_directory in self.data_dirs:
             if Path(data_directory).exists():
                 shutil.rmtree(data_directory)
@@ -201,7 +222,7 @@ class Simulation(object):
 
         download_success = download_static_content(self.content_url, self.external_content_url)
         if not download_success:
-            print("Error downloading sample data, please ensure outbound network access is available and re-run")
+            logger.info(f"{self.vm_name} - Error downloading sample data, please ensure outbound network access is available and re-run")
             return
         copy_pii_data(self.data_dirs)
         time.sleep(60)
@@ -210,11 +231,10 @@ class Simulation(object):
             # Sync the writes.
             os.sync()
 
-
-        print("Creating first full backup")
+        logger.info(f"{self.vm_name} - Creating first full backup")
         job = self._create_protection_job()
         if job is None:
-            print("Error creating job...aborting")
+            logger.info(f"{self.vm_name} - Error creating job...aborting")
             return
         self.job_id = job.id
 
@@ -228,13 +248,13 @@ class Simulation(object):
 
         status = self._wait_for_run_completion()
         if not status:
-            print("Job {0} failed".format(self.job_name))
+            logger.info(f"{self.vm_name} - Job {self.job_name} failed")
             return
 
         req_body = ProtectionJobRequestBody()
         req_body.run_type = RunTypeEnum.KREGULAR
 
-        print("Starting baseline workload")
+        logger.info(f"{self.vm_name} - Starting baseline workload")
         simulate_regular_update(self.data_dirs)
         copy_static_content(self.data_dirs)
         time.sleep(60)
@@ -243,42 +263,41 @@ class Simulation(object):
             # Sync the writes.
             os.sync()
 
-        print("Creating new backup run")
+        logger.info(f"{self.vm_name} - Creating new backup run")
         self.cohesity_client.protection_jobs.create_run_protection_job(
             id=self.job_id,
             body=req_body)
         status = self._wait_for_run_completion()
         if not status:
-            print("Error with backup run, please retry")
+            logger.info(f"{self.vm_name} - Error with backup run, please retry")
             return
-        print("Starting simulation workload")
+        logger.info(f"{self.vm_name} - Starting simulation workload")
         encrypt(self.data_dirs)
 
         if os.name != 'nt':
             # Sync the writes.
             os.sync()
 
-        print("Creating new backup run post simulation")
+        logger.info(f"{self.vm_name} - Creating new backup run post simulation")
         self.cohesity_client.protection_jobs.create_run_protection_job(
             id=self.job_id,
             body=req_body)
         status = self._wait_for_run_completion()
         if not status:
-            print("Error with backup run, please retry")
+            logger.info(f"{self.vm_name} - Error with backup run, please retry")
             return
-        print("Simulation complete")
+        logger.info(f"{self.vm_name} - Simulation complete")
 
     def _verify_cluster_version(self):
-        print("This script only works with cluster version 6.8.1 and above")
+        logger.info(f"{self.vm_name} - This script only works with cluster version 6.8.1 and above")
         try:
             cluster_info = self.cohesity_client.get_basic_cluster_info()
         except Exception as e:
-            print("Exception in API request, cannot verify cluster version. "
+            logger.info(f"{self.vm_name} - Exception in API request, cannot verify cluster version. "
                   "Going ahead.", e)
             return True
 
-        print("The cluster version is {0}".format(cluster_info.
-                                                  cluster_software_version))
+        logger.info(f"{self.vm_name} - The cluster version is {cluster_info.cluster_software_version}")
 
 
     def _wait_for_run_completion(self):
@@ -302,7 +321,7 @@ class Simulation(object):
             runs = self.cohesity_client.protection_runs.get_protection_runs(
                 job_id=self.job_id, num_runs=1)
         except Exception as e:
-            print("Exception in _get_latest_run_status...", e)
+            logger.info(f"{self.vm_name} - Exception in _get_latest_run_status...", e)
             runs=[]
         if len(runs) == 0:
             return "", False
@@ -320,7 +339,7 @@ class Simulation(object):
                 viewboxes = self.cohesity_client.view_boxes.get_view_boxes()
                 break
             except Exception as e:
-                print("Exception in calling get_view_boxes", e)
+                logger.info(f"{self.vm_name} - Exception in calling get_view_boxes", e)
                 time.sleep(5)
                 continue
         for viewbox in viewboxes:
@@ -338,7 +357,7 @@ class Simulation(object):
                         names=self.policy_name)
                 break
             except Exception as e:
-                print("Exception in calling protection_policies", e)
+                logger.info(f"{self.vm_name} - Exception in calling protection_policies", e)
                 time.sleep(5)
                 continue
         if policies is not None and len(policies) != 0:
@@ -356,7 +375,7 @@ class Simulation(object):
                         environments='kVMware')
                 break
             except Exception as e:
-                print("Exception in calling protection_sources", e)
+                logger.info(f"{self.vm_name} - Exception in calling protection_sources", e)
                 time.sleep(5)
                 continue
         if sources is None:
@@ -379,22 +398,22 @@ class Simulation(object):
     def _create_protection_job(self):
         policy = self._get_policy()
         if policy is None:
-            print("Policy {0} not found".format(self.policy_name))
+            logger.info(f"{self.vm_name} - Policy {self.policy_name} not found")
             return
 
         source = self._get_source()
         if source is None:
-            print("Source/Vcenter {0} not found. Please ensure source/vcenter is registered on cluster before running simulations".format(self.source_name))
+            logger.info(f"{self.vm_name} - Source/Vcenter {self.source_name} not found. Please ensure source/vcenter is registered on cluster before running simulations")
             return
 
         vm = self._get_vm()
         if vm is None:
-            print("VM {0} not found. Please ensure source is registered on cluster and vm is present on vcenter".format(self.vm_name))
+            logger.info(f"{self.vm_name} - VM {self.vm_name} not found. Please ensure source is registered on cluster and vm is present on vcenter")
             return
 
         viewbox = self._get_viewbox()
         if viewbox is None:
-            print("Viewbox cannot be determined")
+            logger.info(f"{self.vm_name} - Viewbox cannot be determined")
             return
 
         payload = ProtectionJobRequestBody()
@@ -413,7 +432,7 @@ class Simulation(object):
             return self.cohesity_client.protection_jobs.create_protection_job(
                 payload)
         except APIException as e:
-            print("Exception in API request, update params and retry", e)
+            logger.info(f"{self.vm_name} - Exception in API request, update params and retry", e)
             return None
 
 
@@ -435,15 +454,15 @@ def download_static_content(primary_url, secondary_url):
                 zip_ref.extractall(static_content_directory)
             return True
     else:
-        print("Skipping download as sample data already present")
-        print(file_name.absolute())
+        logger.info("Skipping download as sample data already present")
+        logger.info(file_name.absolute())
         with zipfile.ZipFile(file_name.absolute(), 'r') as zip_ref:
             zip_ref.extractall(static_content_directory)
         return True
 
 
 def copy_static_content(data_dirs):
-    print("Copying over static files")
+    logger.info("Copying over static files")
     glob_path = "{0}{1}**{1}*.*".format(Path(static_content_directory.absolute(),'TestData').absolute(), os.sep)
     available_files = glob.glob(glob_path, recursive = True)
     count = 0
@@ -469,7 +488,7 @@ def copy_pii_data(data_dirs):
 def simulate_regular_update(data_dirs):
     counter = 0
     num_files = random.randint(80, 100)
-    print("Generating {0} files".format(num_files))
+    logger.info(f"Generating {num_files} files")
     while counter < num_files:
         data_directory = random.choice(data_dirs)
         data = ''.join(['This is a test'] * 1024 * 512)
@@ -495,36 +514,51 @@ def encrypt(data_dirs):
                         raw_data = f.read(2048)
                 os.rename(absolute_path, "{}.enc".format(absolute_path))
 
+def start_simulation(**kwargs):
+    simulation = Simulation(**kwargs)
+    simulation.start()
+    return
+
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--cluster", dest='cluster',
-    #                     help="Cluster VIP", required=True)
-    # parser.add_argument("--user", dest='user', help="Username", required=True)
-    # parser.add_argument("--password", dest='password',
-    #                     help="Password", required=True)
-    # parser.add_argument("--vm", dest='vm', help="VM name", required=True)
-    # parser.add_argument("--vcenter", dest='vcenter',
-    #                     help="Vcenter name", required=True)
-    # parser.add_argument("--policy", dest='policy',
-    #                     help="Policy name", required=True)
-    # parser.add_argument("--jobprefix", dest="prefix", default="testSimJob")
-    # parser.add_argument("--data_dirs", dest="data_dirs", default="")
-    # parser.add_argument("--fast_simulation", dest="is_fast_simulation", default=False)
-    #
-    # args = parser.parse_args()
-    #
-    # simulation = Simulation(args.cluster, args.user, args.password,
-    #                         args.vm, args.prefix, args.policy, args.vcenter,
-    #                         args.data_dirs, args.is_fast_simulation)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cluster", dest='cluster',
+                        help="Cluster VIP", required=True)
+    parser.add_argument("--user", dest='user', help="Username", required=True)
+    parser.add_argument("--password", dest='password',
+                        help="Password", required=True)
+    parser.add_argument("--vms", dest='vms', help="VM names separated by comma (,)", required=True)
+    parser.add_argument("--vcenter", dest='vcenter',
+                        help="Vcenter name", required=True)
+    parser.add_argument("--policy", dest='policy',
+                        help="Policy name", required=True)
+    parser.add_argument("--jobprefix", dest="prefix", default="testSimJob")
+    parser.add_argument("--data_dirs", dest="data_dirs", default="")
+    parser.add_argument("--fast_simulation", dest="is_fast_simulation", default=False)
 
-    simulation = Simulation(clusterip='10.14.7.42',
-                            username='admin',
-                            password='Cohe$1ty1234st1',
-                            vmname='datahawkst03',
-                            jobnameprefix = 'subha-test',
-                            policy='DataClassificationPolicy',
-                            source='system-test-vc01.qa01.eng.cohesity.com',
-                            data_dirs='',
-                            is_fast_simulation=False)
-    simulation.start()
+    args = parser.parse_args()
+
+    vms = args.vms.split(',')
+    logger.info("Main    : before creating thread")
+    threads = {}
+    for vm in vms:
+        logger.info("Main    : create and start thread - {}".format(vm))
+        kwargs = dict(clusterip=args.cluster,
+                                username=args.user,
+                                password=args.password,
+                                vmname=vm,
+                                jobnameprefix = args.prefix,
+                                policy=args.policy,
+                                source=args.vcenter,
+                                data_dirs=args.data_dirs,
+                                is_fast_simulation=args.is_fast_simulation)
+        x = threading.Thread(target=start_simulation, kwargs=kwargs)
+        threads[vm] = x
+        x.start()
+
+    logger.info("Main    : wait for the thread to finish")
+    for vm in threads:
+        logger.info("Main    : before joining thread {}".format(vm))
+        threads[vm].join()
+        logger.info("Main    : thread {} done".format(vm))
+    logger.info("Main    : all done")

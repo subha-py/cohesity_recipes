@@ -299,25 +299,27 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
         except Exception as exc:
             print("%r generated an exception: %s" % (pg, exc))
         else:
-            print("deleted protection group - {}".format(pg))
+            print("protection group - {}, processed".format(pg))
 
 
 if __name__ == '__main__':
     # pause_protection_job('subha_LCMTestBucket_Object_1')
-    # pgs = get_all_cluster_protection_jobs()
-    # pg_name_list = []
-    # for pg in pgs:
-    #     if "subha_LCMTestBucket_Object_9" in pg['name']:
-    #         pg_name_list.append(pg['name'])
-    # cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=True, pause=True)
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.35",password='Syst7mt7stMaster')
+    # setup_cluster_automation_variables_in_environment(cluster_ip="10.2.198.16")
+    pgs = get_all_cluster_protection_jobs()
+    pg_name_list = []
+    for pg in pgs:
+            if 'oracle-19c-linux-sbera-masterx-1' in pg['name']:
+                pg_name_list.append(pg['name'])
+    # print(pg_name_list)
+    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False)
     # client_cycle = get_client_cycle()
     # buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Object")
     # random.shuffle(buckets)
     # for bucket in buckets[:4]:
     #     run_bucket_protection(bucket)
 
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.197.99")
     # print(os.environ.get('node_ips'))
-    # info = get_protection_info('sync-200GB-replication-sachin')
+    # info = get_protection_info('sync-200GB-replication-sachin'
     # print(info)
-    cancel_pending_protection_job_runs(pgs=['ak_test_replication_only'], pause=True, delete_pg=False)
+    # cancel_pending_protection_job_runs(pgs=['ak_test_replication_only'], pause=True, delete_pg=False)
