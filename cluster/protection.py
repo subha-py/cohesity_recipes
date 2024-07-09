@@ -301,18 +301,19 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
         else:
             print("protection group - {}, processed".format(pg))
 
+def get_job_from_id(pg_list, id):
+    for pg in pg_list:
+        if pg['uid']['id'] == int(id):
+            return pg
 
 if __name__ == '__main__':
     # pause_protection_job('subha_LCMTestBucket_Object_1')
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.35",password='Syst7mt7stMaster')
+    setup_cluster_automation_variables_in_environment(
+        cluster_ip="10.14.7.78",password='admin')
     # setup_cluster_automation_variables_in_environment(cluster_ip="10.2.198.16")
     pgs = get_all_cluster_protection_jobs()
-    pg_name_list = []
-    for pg in pgs:
-            if 'oracle-19c-linux-sbera-masterx-1' in pg['name']:
-                pg_name_list.append(pg['name'])
-    # print(pg_name_list)
-    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False)
+    pg = get_job_from_id(pgs, 303)
+
     # client_cycle = get_client_cycle()
     # buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Object")
     # random.shuffle(buckets)
