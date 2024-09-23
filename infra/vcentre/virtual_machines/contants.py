@@ -24,17 +24,19 @@ ORACLE_DC_VMS = [
     'srs_ora_master_19c_01',
     'srs_ora_master_19c_02',
     'st_master_oracle_12c_SBT',
-    'st_ora_hedp_19c_std',
-    'st_hedp_oracle_12c_bct',
-    'st05_oracle_12c_RMAN',
-    'st05_oracle_12c_SBT',
-    'system_test_cdb_pbd_01',
-    'srs_ora_st05_19c_1t',
-    'oracle_std_5t_st_05',
-    'st_ora_hedp_19c_std',
-    'st_ora_hedp_19c_std_02',
-    'st05_oracle_12c_SBT',
-    'st_ora_hedp_19c_std_02',
+    ####### st_05_Oracle_train_base ##################
+    'st_ora_hedp_19c_std', # StConfigureOracleStd
+    'st_hedp_oracle_12c_bct', # StConfigureOracleBct
+    'st05_oracle_12c_RMAN', # StConfigureOracleRmanTests
+    'st05_oracle_12c_SBT', # StConfigureOracleStdSBT
+    'system_test_cdb_pbd_01', #st_extend_configure_oracle_cdb_pdb
+    'srs_ora_st05_19c_1t', #st_extend_configure_oracle_clone_tests, st_extend_configure_oracle_fi_tests
+    'oracle_std_5t_st_05', # StConfigureOracle5TStd
+    'st_ora_hedp_19c_std', # StRestoreOracleStd
+    'st_ora_hedp_19c_std_02', # StRestoreOracleStd
+    'st05_oracle_12c_SBT', # StRestoreOracleSBT
+    'st_ora_hedp_19c_std_02', # st_extend_restore_oracle_fi_tests
+    # -----------------------------------------------------------
     'oracle_standalone_dmaas_aws_1',
     'oracle_standalone_dmaas_aws_2',
     'oracle-pumper',
