@@ -315,6 +315,5 @@ if __name__ == '__main__':
     pg_name_list = []
     print('pgs - {}'.format(pgs))
     for pg in pgs:
-        if 'SRS_Auto_Ora_Std_Bct_Enable_Job'.lower() in pg['name'].lower():
             pg_name_list.append(pg['name'])
     cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False, delete_snapshots=True)
