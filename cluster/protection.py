@@ -1,7 +1,9 @@
 import requests
 import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-
+import sys
+sys.path.append('/Users/subha.bera/PycharmProjects/cohesity_recipes/cluster/protection.py')
+sys.path.append('/Users/subha.bera/PycharmProjects/cohesity_recipes')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -11,16 +13,14 @@ from itertools import cycle
 import random
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_headers
 import concurrent.futures
-
+from datetime import datetime, timedelta
 
 def get_bucket_info(bucket_name):
     # todo clean up headers with a method
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
-    response = requests.request("GET",
-                                "https://{}/irisservices/api/v1/public/views?viewNames={}".format(cluster_ip,
-                                                                                                  bucket_name),
-                                verify=False, headers=get_headers())
+    response = requests.request("GET", "https://{}/irisservices/api/v1/public/views?viewNames={}".format(cluster_ip, bucket_name), verify=False,
+        headers=get_headers())
     if response.status_code == 200:
         return response.json()['views'][0]
 
@@ -31,13 +31,12 @@ def get_protection_info(protection_name):
     cluster_ip = random.choice(ips)
     headers = get_headers()
     response = requests.request("GET",
-                                "https://{}/irisservices/api/v1/public/protectionJobs?names={}".format(cluster_ip,
-                                                                                                       protection_name),
-                                verify=False, headers=headers)
+        "https://{ip}/v2/data-protect/protection-groups?names={protection_name}".format(ip=cluster_ip, protection_name=protection_name), verify=False,
+        headers=headers)
     if response.status_code == 200:
         res = response.json()
         if res:
-            return res[0]
+            return res['protectionGroups'][0]
         else:
             return False
 
@@ -46,10 +45,8 @@ def get_view_box_info(viewbox_name):
     # todo clean up headers with a method
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
-    response = requests.request("GET",
-                                "https://{}/irisservices/api/v1/public/viewBoxes?names={}".format(cluster_ip,
-                                                                                                  viewbox_name),
-                                verify=False, headers=get_headers())
+    response = requests.request("GET", "https://{}/irisservices/api/v1/public/viewBoxes?names={}".format(cluster_ip, viewbox_name), verify=False,
+        headers=get_headers())
     if response.status_code == 200:
         return response.json()[0]
 
@@ -58,16 +55,13 @@ def get_policy_info(policy_name):
     ips = os.environ.get("node_ips").split(",")
     cluster_ip = random.choice(ips)
     # todo use params
-    response = requests.request("GET",
-                                "https://{}/irisservices/api/v1/public/protectionPolicies?names={}&environments=kView".format(
-                                    cluster_ip, policy_name),
-                                verify=False, headers=get_headers())
+    response = requests.request("GET", "https://{}/irisservices/api/v1/public/protectionPolicies?names={}&environments=kView".format(cluster_ip, policy_name),
+        verify=False, headers=get_headers())
     if response.status_code == 200:
         return response.json()[0]
 
 
-def process_protection_request(bucket_name, ip, policy_id, effective_now, protection_group_prefix="s3-test-",
-                               force=False):
+def process_protection_request(bucket_name, ip, policy_id, effective_now, protection_group_prefix="s3-test-", force=False):
     try:
         bucket_info = get_bucket_info(bucket_name)
         if not force and bucket_info.get('viewProtection'):
@@ -75,43 +69,16 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
             return
         pg_name = "{}{}".format(protection_group_prefix, bucket_info['name'])
         if 'Object' not in pg_name:
-            indexing_policy = {
-                "disableIndexing": False,
-                "allowPrefixes": [
-                    "/"
-                ]
-            }
+            indexing_policy = {"disableIndexing": False, "allowPrefixes": ["/"]}
         else:
-            indexing_policy = {
-                "disableIndexing": True,
-            }
-        data = {
-            "name": pg_name,
-            "environment": "kView",
-            "policyId": policy_id,
-            "viewBoxId": bucket_info['viewBoxId'],
-            "sourceIds": [
-                bucket_info['viewId']
-            ],
-            "startTime": {
-                "hour": 23,
-                "minute": 28
-            },
-            "timezone": "Asia/Calcutta",
-            "indexingPolicy": indexing_policy,
-            "remoteViewConfigList": [
-                {
-                    "sourceViewId": bucket_info['viewBoxId'],
-                    "useSameViewName": True
-                }
-            ]
+            indexing_policy = {"disableIndexing": True, }
+        data = {"name": pg_name, "environment": "kView", "policyId": policy_id, "viewBoxId": bucket_info['viewBoxId'], "sourceIds": [bucket_info['viewId']],
+            "startTime": {"hour": 23, "minute": 28}, "timezone": "Asia/Calcutta", "indexingPolicy": indexing_policy,
+            "remoteViewConfigList": [{"sourceViewId": bucket_info['viewBoxId'], "useSameViewName": True}]
 
         }
         print("trying to create protection group - {} - for - {}".format(pg_name, bucket_name))
-        response = requests.request("POST",
-                                    "https://{}/irisservices/api/v1/public/protectionJobs".format(ip),
-                                    verify=False,
-                                    headers=get_headers(), json=data)
+        response = requests.request("POST", "https://{}/irisservices/api/v1/public/protectionJobs".format(ip), verify=False, headers=get_headers(), json=data)
 
         if response.status_code == 201:
             print("successfully protection group for {}- {}".format(pg_name, bucket_name))
@@ -132,24 +99,17 @@ def process_protection_request(bucket_name, ip, policy_id, effective_now, protec
 def get_all_cluster_protection_jobs():
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
-    response = requests.request("GET",
-                                "https://{}/irisservices/api/v1/public/protectionJobs".format(
-                                    ip), verify=False,
-                                headers=get_headers())
-    return response.json()
+    response = requests.request("GET", "https://{}/v2/data-protect/protection-groups".format(ip), verify=False, headers=get_headers())
+    return response.json()['protectionGroups']
 
 
 def delete_protection_group(pg_name):
     info = get_protection_info(pg_name)
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
-    body = {
-        "deleteSnapshots": True
-    }
-    response = requests.request("DELETE",
-                                "https://{}/irisservices/api/v1/public/protectionJobs/{}".format(
-                                    ip, info['id']), verify=False,
-                                headers=get_headers(), json=body)
+    body = {"deleteSnapshots": True}
+    response = requests.request("DELETE", "https://{}/irisservices/api/v1/public/protectionJobs/{}".format(ip, info['id']), verify=False,
+        headers=get_headers(), json=body)
     if response.status_code == 204:
         print("deletion of protection group - {} is successful".format(pg_name))
     else:
@@ -166,8 +126,7 @@ def unprotect_all_buckets(buckets):
         ips = os.environ.get("node_ips").split(",")
         ip = random.choice(ips)
         for bucketProtection in bucketProtections:
-            if bucketProtection.get("jobName").startswith(
-                    "_DELETED"):  # after deletion of a pg it named as DELETED_pg_name
+            if bucketProtection.get("jobName").startswith("_DELETED"):  # after deletion of a pg it named as DELETED_pg_name
                 # todo: is this a bug investigate
                 continue
             delete_protection_group(bucketProtection.get("jobName"))
@@ -179,13 +138,9 @@ def run_protection_group(protection_name=None, protection_id=None):
         protection_id = res['id']
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
-    data = {
-        "runType": "kRegular"
-    }
-    response = requests.request("POST",
-                                "https://{}/irisservices/api/v1/public/protectionJobs/run/{}".format(
-                                    ip, protection_id), verify=False,
-                                headers=get_headers(), json=data)
+    data = {"runType": "kRegular"}
+    response = requests.request("POST", "https://{}/irisservices/api/v1/public/protectionJobs/run/{}".format(ip, protection_id), verify=False,
+        headers=get_headers(), json=data)
     if response.status_code == 204:
         print("Successfully started run for protection group - {}".format(protection_id))
         return True
@@ -204,8 +159,7 @@ def run_bucket_protection(bucket_name):
         print("Bucket is not protected")
 
 
-def create_protection(bucket_list, policy_id=None, policy_id_list=None, effective_now=True, force=False,
-                      prefix="subha_"):
+def create_protection(bucket_list, policy_id=None, policy_id_list=None, effective_now=True, force=False, prefix="subha_"):
     print("got buckets - {}".format(len(bucket_list)))
     ips = os.environ.get("node_ips").split(",")
     ip_cycle = cycle(ips)
@@ -214,9 +168,7 @@ def create_protection(bucket_list, policy_id=None, policy_id_list=None, effectiv
         if policy_id_list is not None:
             policy_id = random.choice(policy_id_list)
         arg = (bucket_name, next(ip_cycle), policy_id, effective_now, prefix)
-        process_protection_request(*arg, force=force)
-    # pool.close()
-    # pool.join()
+        process_protection_request(*arg, force=force)  # pool.close()  # pool.join()
 
 
 def pause_protection_job(pg_name):
@@ -225,25 +177,38 @@ def pause_protection_job(pg_name):
     info = get_protection_info(pg_name)
     if not info:
         return
-    data = {
-        "pause": True,
-        "pauseReason": 0
-    }
-    response = requests.request("POST",
-                                "https://{}/irisservices/api/v1/public/protectionJobState/{}".format(
-                                    ip, info['id']),
-                                verify=False,
-                                headers=get_headers(), json=data)
+    data = {"pause": True, "pauseReason": 0}
+    response = requests.request("POST", "https://{}/irisservices/api/v1/public/protectionJobState/{}".format(ip, info['id']), verify=False,
+        headers=get_headers(), json=data)
     if response.status_code == 204:
         print("Successfully paused pg - {}".format(pg_name))
     else:
         print("pausing pg is unsuccessful - {} - on ip - {}".format(pg_name, ip))
 
 
-def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread_num=None):
-    def cancel_pending_runs_of_pg(pg, delete_pg, pause):
+def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete_snapshots=False):
+    def cancel_pending_runs_of_pg(pg, delete_pg, pause, delete_snapshots):
+        def sleep_between(pg):
+            print(f'going ot sleep for pg - {pg}')
+            time.sleep(random.randint(10,30))
+        def cancel_run(id, cancel_params):
+            ips = os.environ.get("node_ips").split(",")
+            ip = random.choice(ips)
+            data = {'action': 'Cancel', 'cancelParams': cancel_params}
+            sleep_between(id)
+            response = requests.request("POST", "https://{}/v2/data-protect/protection-groups/{}/runs/actions".format(ip, id), verify=False,
+                headers=get_headers(), json=data)
+            if response.status_code == 202:
+                print("task - data - {} is successfully cancelled - {}".format(data, pg))
+            else:
+                print("could not cancel running task - data - {} {}".format(data, pg))
+
+            cancel_params = [{'runId': cancel_params[0]['runId']}]
+            return cancel_params
+
         if pause:
             pause_protection_job(pg)
+        sleep_between(pg)
         print("cancelling runs on - pg - {}".format(pg))
         info = get_protection_info(pg)
         if not info:
@@ -251,38 +216,73 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
         id = info['id']
         ips = os.environ.get("node_ips").split(",")
         ip = random.choice(ips)
-        response = requests.request("GET",
-                                    "https://{}/irisservices/api/v1/public/protectionRuns?jobId={}".format(
-                                        ip, id), verify=False,
-                                    headers=get_headers())
-
+        response = requests.request("GET", f'https://{ip}/v2/data-protect/protection-groups/{id}/runs', verify=False, headers=get_headers())
+        sleep_between(pg)
+        # getting all runs
+        num_runs = response.json()['totalRuns']
+        dt = datetime.now() - timedelta(days=20)
+        dt_s = str(dt.timestamp())
+        dt_s = ''.join(dt_s.split('.'))
+        response = requests.request("GET", f'https://{ip}/v2/data-protect/protection-groups/{id}/runs',
+            params={'numRuns': num_runs, 'startTimeUsecs': dt_s}, verify=False, headers=get_headers())
         if response.status_code != 200:
             print("Failed to get runs for pg - {}".format(pg))
             return
-        runs = response.json()
-        for run in runs:
-            copyRuns = run.get('copyRun')
-            if copyRuns:
-                for copyRun in copyRuns:
-                    target = copyRun["target"].get("type")
-                    if target == "kRemote" or target == "kArchival" or target == "kLocal":
-                        if copyRun.get('status') == 'kRunning' or copyRun.get('status') == 'kAccepted':
-                            data = {"copyTaskUid": copyRun.get("taskUid")}
-                            ips = os.environ.get("node_ips").split(",")
-                            ip = random.choice(ips)
-                            response = requests.request("POST",
-                                                        "https://{}/irisservices/api/v1/public/protectionRuns/cancel/{}".format(
-                                                            ip, id),
-                                                        verify=False,
-                                                        headers=get_headers(), json=data)
-                            if response.status_code == 204:
-                                print("task - data - {} is successfully cancelled - {}".format(data, pg))
+        runs = response.json()['runs']
 
-                            else:
-                                print("could not cancel running task - data - {} {}".format(data, pg))
-        if delete_pg:
-            time.sleep(5)
-            delete_protection_group(pg)
+        for run in runs:
+            delete_snaps_params = [{'runId': run.get('id')}]
+            cancel_params = [{}]
+            cancel_params[0]['runId'] = run.get('id')
+            target_statuses = ['Accepted', 'Running']
+            if run.get('localBackupInfo'):
+                if run.get('localBackupInfo').get('status') in target_statuses:
+                    cancel_params[0]['localTaskId'] = run.get('localBackupInfo').get('localTaskId')
+                    cancel_params = cancel_run(id, cancel_params)
+                if delete_snapshots:
+                    delete_snaps_params[0]['localSnapshotConfig'] = {"deleteSnapshot": True}
+            if run.get('replicationInfo'):
+                cancel_params[0]['replicationTaskId'] = []
+                for replication in run['replicationInfo']['replicationTargetResults']:
+                    if replication.get('status') in target_statuses:
+                        cancel_params[0]['replicationTaskId'].append(replication.get('replicationTaskId'))
+                        cancel_params = cancel_run(id, cancel_params)
+                    if delete_snapshots:
+                        if delete_snaps_params[0].get('replicationSnapshotConfig') is None:
+                            delete_snaps_params[0]['replicationSnapshotConfig'] = {'updateExistingSnapshotConfig': []}
+                        delete_snaps_params[0]['replicationSnapshotConfig']['updateExistingSnapshotConfig'].append(
+                            {"deleteSnapshot": True,
+                             "id": replication.get('clusterId'),
+                             "name": replication.get('clusterName')
+                            }
+                        )
+
+            if run.get('archivalInfo'):
+                cancel_params[0]['archivalTaskId'] = []
+                for archival in run['archivalInfo']['archivalTargetResults']:
+                    if archival.get('status') in target_statuses:
+                        cancel_params[0]['archivalTaskId'].append(archival.get('archivalTaskId'))
+                        cancel_params = cancel_run(id, cancel_params)
+                    if delete_snapshots:
+                        if delete_snaps_params[0].get('archivalSnapshotConfig') is None:
+                            delete_snaps_params[0]['archivalSnapshotConfig'] = {'updateExistingSnapshotConfig': []}
+                        delete_snaps_params[0]['archivalSnapshotConfig']['updateExistingSnapshotConfig'].append(
+                            {"deleteSnapshot": True,
+                             "id": archival.get('targetId'),
+                             "name": archival.get('targetName'),
+                             "archivalTargetType": archival.get('targetType'),
+                            }
+                        )
+
+            if delete_snapshots and len(delete_snaps_params[0]) > 1:
+                sleep_between(pg)
+                delete_snaps_params = {'updateProtectionGroupRunParams':delete_snaps_params}
+                response = requests.request("PUT", f'https://{ip}/v2/data-protect/protection-groups/{id}/runs', verify=False, headers=get_headers(),
+                json=delete_snaps_params)
+                if response.status_code == 207:
+                    print("snapshots successfully deleted - for run {}, data - {}".format(id, delete_snaps_params))
+                else:
+                    print("failed to delete snapshots - for run {}, data - {}".format(id, delete_snaps_params))
 
     if not pgs:
         return
@@ -290,7 +290,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
     thread = os.environ.get("node_ips").count(",")
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(pgs), thread)) as executor:
         for pg in pgs:
-            arg = (pg, delete_pg, pause)
+            arg = (pg, delete_pg, pause, delete_snapshots)
             future_to_pg[executor.submit(cancel_pending_runs_of_pg, *arg)] = pg
     for future in concurrent.futures.as_completed(future_to_pg):
         pg = future_to_pg[future]
@@ -301,26 +301,20 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, thread
         else:
             print("protection group - {}, processed".format(pg))
 
+
 def get_job_from_id(pg_list, id):
     for pg in pg_list:
         if pg['uid']['id'] == int(id):
             return pg
 
+
 if __name__ == '__main__':
-    # pause_protection_job('subha_LCMTestBucket_Object_1')
-    setup_cluster_automation_variables_in_environment(
-        cluster_ip="10.14.7.78",password='admin')
-    # setup_cluster_automation_variables_in_environment(cluster_ip="10.2.198.16")
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.61", password='Syst7mt7st')
+    # setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.1", password='Syst7mt7st')
     pgs = get_all_cluster_protection_jobs()
-    pg = get_job_from_id(pgs, 303)
-
-    # client_cycle = get_client_cycle()
-    # buckets = get_buckets_from_prefix(next(client_cycle), prefix="LCMTestBucket_Object")
-    # random.shuffle(buckets)
-    # for bucket in buckets[:4]:
-    #     run_bucket_protection(bucket)
-
-    # print(os.environ.get('node_ips'))
-    # info = get_protection_info('sync-200GB-replication-sachin'
-    # print(info)
-    # cancel_pending_protection_job_runs(pgs=['ak_test_replication_only'], pause=True, delete_pg=False)
+    pg_name_list = []
+    print('pgs - {}'.format(pgs))
+    for pg in pgs:
+        if 'SRS_Auto_Ora_Std_Bct_Enable_Job'.lower() in pg['name'].lower():
+            pg_name_list.append(pg['name'])
+    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False, delete_snapshots=True)

@@ -10,11 +10,10 @@ from s3.utils.connector import get_s3_client, get_endpoint, get_s3_resource
 def get_access_token(cluster_ip, username="admin", password="Syst7mt7st", domain="local"):
     headers = {'Content-Type': "application/json", 'accept': "application/json"}
     data = {
-        "domain": domain,
         "password": password,
         "username": username
     }
-    response = requests.request("POST", "https://{}/irisservices/api/v1/public/accessTokens".format(cluster_ip),
+    response = requests.request("POST", "https://{}/v2/access-tokens".format(cluster_ip),
                                 verify=False, headers=headers, json=data)
     if response.status_code == 201:
         response_data = response.json()
@@ -54,7 +53,7 @@ def get_node_ips(cluster_ip, username="admin", password="Syst7mt7st", domain="lo
                                                      domain=domain):
             raise EnvironmentError("Please provide access token")
     headers['Authorization'] = "bearer {}".format(os.environ.get('accessToken'))
-    response = requests.request("GET", "https://{}/irisservices/api/v1/public/cluster".format(cluster_ip), verify=False,
+    response = requests.request("GET", "https://{}/v2/clusters".format(cluster_ip), verify=False,
                                 headers=headers)
     if response.status_code == 200:
         response_data = response.json()

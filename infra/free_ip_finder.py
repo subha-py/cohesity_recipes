@@ -12,18 +12,21 @@ def ip_assigned(ip):
     return False
 
 
-LOWER_LIMIT = '10.14.69.121'
-UPPPER_LIMIT = '10.14.70.168'
+# LOWER_LIMIT = '10.14.69.121'
+# UPPER_LIMIT = '10.14.70.168'
+LOWER_LIMIT = '10.3.56.2'
+UPPER_LIMIT = '10.3.63.255'
 
 def ping_ips_in_parallel():
     lower_ip_obj = ipaddress.IPv4Address(LOWER_LIMIT)
-    upper_ip_obj = ipaddress.IPv4Address(UPPPER_LIMIT)
+    upper_ip_obj = ipaddress.IPv4Address(UPPER_LIMIT)
     free_ips = []
     while lower_ip_obj < upper_ip_obj:
         free_ips.append(lower_ip_obj)
         lower_ip_obj += 1
     future_to_ip = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(free_ips)) as executor:
+    with (concurrent.futures.ThreadPoolExecutor(max_workers=min(128,
+                                            len(free_ips))) as executor):
         for ip_obj in free_ips:
             ip_str = str(ip_obj)
             arg = (str(ip_str),)
