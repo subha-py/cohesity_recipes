@@ -319,5 +319,6 @@ if __name__ == '__main__':
     pg_name_list = []
     print('pgs - {}'.format(pgs))
     for pg in pgs:
+        # if '<your_pg_name,part of your pg names>' in pg['name']:
             pg_name_list.append(pg['name'])
     cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False, delete_snapshots=True)
