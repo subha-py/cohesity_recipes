@@ -189,8 +189,9 @@ def pause_protection_job(pg_name):
 def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete_snapshots=False):
     def cancel_pending_runs_of_pg(pg, delete_pg, pause, delete_snapshots):
         def sleep_between(pg):
-            print(f'going ot sleep for pg - {pg}')
-            time.sleep(random.randint(10,30))
+            sleep_time = random.randint(10,30)
+            print(f'going to sleep for pg - {pg} for - {sleep_time}')
+            time.sleep(sleep_time)
         def cancel_run(id, cancel_params):
             ips = os.environ.get("node_ips").split(",")
             ip = random.choice(ips)
