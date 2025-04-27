@@ -232,6 +232,9 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
 
         for run in runs:
             delete_snaps_params = [{'runId': run.get('id')}]
+            delete_snapshots_for_run = delete_snapshots
+            if run['isLocalSnapshotsDeleted'] == True:
+                delete_snapshots_for_run = False
             cancel_params = [{}]
             cancel_params[0]['runId'] = run.get('id')
             target_statuses = ['Accepted', 'Running']
@@ -239,7 +242,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
                 if run.get('localBackupInfo').get('status') in target_statuses:
                     cancel_params[0]['localTaskId'] = run.get('localBackupInfo').get('localTaskId')
                     cancel_params = cancel_run(id, cancel_params)
-                if delete_snapshots:
+                if delete_snapshots_for_run:
                     delete_snaps_params[0]['localSnapshotConfig'] = {"deleteSnapshot": True}
             if run.get('replicationInfo'):
                 cancel_params[0]['replicationTaskId'] = []
@@ -247,7 +250,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
                     if replication.get('status') in target_statuses:
                         cancel_params[0]['replicationTaskId'].append(replication.get('replicationTaskId'))
                         cancel_params = cancel_run(id, cancel_params)
-                    if delete_snapshots:
+                    if delete_snapshots_for_run:
                         if delete_snaps_params[0].get('replicationSnapshotConfig') is None:
                             delete_snaps_params[0]['replicationSnapshotConfig'] = {'updateExistingSnapshotConfig': []}
                         delete_snaps_params[0]['replicationSnapshotConfig']['updateExistingSnapshotConfig'].append(
@@ -263,7 +266,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
                     if archival.get('status') in target_statuses:
                         cancel_params[0]['archivalTaskId'].append(archival.get('archivalTaskId'))
                         cancel_params = cancel_run(id, cancel_params)
-                    if delete_snapshots:
+                    if delete_snapshots_for_run:
                         if delete_snaps_params[0].get('archivalSnapshotConfig') is None:
                             delete_snaps_params[0]['archivalSnapshotConfig'] = {'updateExistingSnapshotConfig': []}
                         delete_snaps_params[0]['archivalSnapshotConfig']['updateExistingSnapshotConfig'].append(
@@ -274,7 +277,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
                             }
                         )
 
-            if delete_snapshots and len(delete_snaps_params[0]) > 1:
+            if delete_snapshots_for_run and len(delete_snaps_params[0]) > 1:
                 sleep_between(pg)
                 delete_snaps_params = {'updateProtectionGroupRunParams':delete_snaps_params}
                 response = requests.request("PUT", f'https://{ip}/v2/data-protect/protection-groups/{id}/runs', verify=False, headers=get_headers(),
