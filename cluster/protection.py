@@ -171,19 +171,26 @@ def create_protection(bucket_list, policy_id=None, policy_id_list=None, effectiv
         process_protection_request(*arg, force=force)  # pool.close()  # pool.join()
 
 
-def pause_protection_job(pg_name):
+def pause_protection_job(id):
+    data = {
+      "action": "kPause",
+      "ids": [
+        id,
+      ],
+      "lastPauseReason": "kTenantDeactivation",
+      "pausedNote": "string",
+      "tenantId": "string"
+    }
     ips = os.environ.get("node_ips").split(",")
     ip = random.choice(ips)
-    info = get_protection_info(pg_name)
-    if not info:
-        return
-    data = {"pause": True, "pauseReason": 0}
-    response = requests.request("POST", "https://{}/irisservices/api/v1/public/protectionJobState/{}".format(ip, info['id']), verify=False,
+    response = requests.request("POST", f"https://{ip}/v2/data-protect/protection-groups/states", verify=False,
         headers=get_headers(), json=data)
-    if response.status_code == 204:
-        print("Successfully paused pg - {}".format(pg_name))
+    if response.status_code == 200:
+        print("Successfully paused pg - {}".format(id))
+        return True
     else:
-        print("pausing pg is unsuccessful - {} - on ip - {}".format(pg_name, ip))
+        print("pausing pg is unsuccessful - {} - on ip - {}".format(id, ip))
+        return False
 
 
 def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete_snapshots=False):
@@ -207,14 +214,15 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
             cancel_params = [{'runId': cancel_params[0]['runId']}]
             return cancel_params
 
-        if pause:
-            pause_protection_job(pg)
-        sleep_between(pg)
-        print("cancelling runs on - pg - {}".format(pg))
         info = get_protection_info(pg)
         if not info:
             return
         id = info['id']
+        sleep_between(pg)
+        print("cancelling runs on - pg - {}".format(pg))
+        if pause:
+            if pause_protection_job(id):
+                print('pg - {} is paused'.format(pg))
         ips = os.environ.get("node_ips").split(",")
         ip = random.choice(ips)
         response = requests.request("GET", f'https://{ip}/v2/data-protect/protection-groups/{id}/runs', verify=False, headers=get_headers())
@@ -313,12 +321,12 @@ def get_job_from_id(pg_list, id):
 
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.196.121", password='Syst7mt7st')
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.59", password='Syst7mt7st')
     # setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.1", password='Syst7mt7st')
     pgs = get_all_cluster_protection_jobs()
     pg_name_list = []
     print('pgs - {}'.format(pgs))
     for pg in pgs:
-        # if '<your_pg_name,part of your pg names>' in pg['name']:
+        # if 'SRS_Auto_Ora_Std_Bct_Enable_Job'.lower() in pg['name'].lower():
             pg_name_list.append(pg['name'])
-    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False, delete_snapshots=False)
+    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=True, delete_snapshots=True)
