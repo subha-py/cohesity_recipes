@@ -225,7 +225,7 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
         dt_s = str(dt.timestamp())
         dt_s = ''.join(dt_s.split('.'))
         response = requests.request("GET", f'https://{ip}/v2/data-protect/protection-groups/{id}/runs',
-            params={'numRuns': num_runs, 'startTimeUsecs': dt_s}, verify=False, headers=get_headers())
+            params={'numRuns': num_runs, }, verify=False, headers=get_headers())
         if response.status_code != 200:
             print("Failed to get runs for pg - {}".format(pg))
             return
@@ -313,7 +313,7 @@ def get_job_from_id(pg_list, id):
 
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.61", password='Syst7mt7st')
+    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.196.121", password='Syst7mt7st')
     # setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.1", password='Syst7mt7st')
     pgs = get_all_cluster_protection_jobs()
     pg_name_list = []
@@ -321,4 +321,4 @@ if __name__ == '__main__':
     for pg in pgs:
         # if '<your_pg_name,part of your pg names>' in pg['name']:
             pg_name_list.append(pg['name'])
-    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False, delete_snapshots=True)
+    cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=False, delete_snapshots=False)
