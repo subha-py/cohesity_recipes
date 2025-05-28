@@ -2,8 +2,8 @@ import requests
 import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import sys
-sys.path.append('/Users/subha.bera/PycharmProjects/cohesity_recipes/cluster/protection.py')
-sys.path.append('/Users/subha.bera/PycharmProjects/cohesity_recipes')
+sys.path.append('~/PycharmProjects/cohesity_recipes/cluster/protection.py')
+sys.path.append('~/PycharmProjects/cohesity_recipes')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -14,6 +14,7 @@ import random
 from cluster.connection import setup_cluster_automation_variables_in_environment, get_headers
 import concurrent.futures
 from datetime import datetime, timedelta
+import argparse
 
 def get_bucket_info(bucket_name):
     # todo clean up headers with a method
@@ -321,12 +322,19 @@ def get_job_from_id(pg_list, id):
 
 
 if __name__ == '__main__':
-    setup_cluster_automation_variables_in_environment(cluster_ip="10.2.195.59", password='Syst7mt7st')
-    # setup_cluster_automation_variables_in_environment(cluster_ip="10.14.7.1", password='Syst7mt7st')
+    parser = argparse.ArgumentParser(description='Program to cancel and delete snapshots in cluster')
+    parser._action_groups.pop()
+    required = parser.add_argument_group('required arguments')
+    optional = parser.add_argument_group('optional arguments')
+
+
+    required.add_argument('--clusterip', help='ip/hostname of the db', type=str, required=True)
+    result = parser.parse_args()
+    cluster_ip = result.clusterip
+    setup_cluster_automation_variables_in_environment(cluster_ip=cluster_ip, password='Syst7mt7st')
     pgs = get_all_cluster_protection_jobs()
     pg_name_list = []
     print('pgs - {}'.format(pgs))
     for pg in pgs:
-        # if 'SRS_Auto_Ora_Std_Bct_Enable_Job'.lower() in pg['name'].lower():
             pg_name_list.append(pg['name'])
     cancel_pending_protection_job_runs(pgs=pg_name_list, delete_pg=False, pause=True, delete_snapshots=True)
