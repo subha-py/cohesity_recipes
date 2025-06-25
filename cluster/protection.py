@@ -213,6 +213,8 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
                 print("could not cancel running task - data - {} {}".format(data, pg))
 
             cancel_params = [{'runId': cancel_params[0]['runId']}]
+            cancel_params[0]['replicationTaskId'] = []
+            cancel_params[0]['archivalTaskId'] = []
             return cancel_params
 
         info = get_protection_info(pg)
