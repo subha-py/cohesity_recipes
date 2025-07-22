@@ -119,7 +119,4 @@ if __name__ == '__main__':
                                 verify=False, headers=headers)
     if response.status_code == 200:
         response = response.json()
-    import json
-
-    with open('/home/cohesity/dump2.json', 'w') as fh:
-        json.dump(response, fh)
+    print(response)

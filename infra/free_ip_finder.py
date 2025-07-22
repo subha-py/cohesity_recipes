@@ -14,8 +14,11 @@ def ip_assigned(ip):
 
 # LOWER_LIMIT = '10.14.69.121'
 # UPPER_LIMIT = '10.14.70.168'
-LOWER_LIMIT = '10.3.56.2'
-UPPER_LIMIT = '10.3.63.255'
+# LOWER_LIMIT = '10.3.56.2'
+# UPPER_LIMIT = '10.3.63.255'
+
+LOWER_LIMIT = '10.131.36.21'
+UPPER_LIMIT = '10.131.39.254'
 
 def ping_ips_in_parallel():
     lower_ip_obj = ipaddress.IPv4Address(LOWER_LIMIT)
