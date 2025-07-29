@@ -250,28 +250,28 @@ def cancel_pending_protection_job_runs(pgs, delete_pg=False, pause=False, delete
             cancel_params = [{}]
             cancel_params[0]['runId'] = run.get('id')
             target_statuses = ['Accepted', 'Running']
-            # todo: revert me later
-            # if run.get('localBackupInfo'):
-            #     if run.get('localBackupInfo').get('status') in target_statuses:
-            #         cancel_params[0]['localTaskId'] = run.get('localBackupInfo').get('localTaskId')
-            #         cancel_params = cancel_run(id, cancel_params)
-            #     if delete_snapshots_for_run:
-            #         delete_snaps_params[0]['localSnapshotConfig'] = {"deleteSnapshot": True}
-            # if run.get('replicationInfo'):
-            #     cancel_params[0]['replicationTaskId'] = []
-            #     for replication in run['replicationInfo']['replicationTargetResults']:
-            #         if replication.get('status') in target_statuses:
-            #             cancel_params[0]['replicationTaskId'].append(replication.get('replicationTaskId'))
-            #             cancel_params = cancel_run(id, cancel_params)
-            #         if delete_snapshots_for_run:
-            #             if delete_snaps_params[0].get('replicationSnapshotConfig') is None:
-            #                 delete_snaps_params[0]['replicationSnapshotConfig'] = {'updateExistingSnapshotConfig': []}
-            #             delete_snaps_params[0]['replicationSnapshotConfig']['updateExistingSnapshotConfig'].append(
-            #                 {"deleteSnapshot": True,
-            #                  "id": replication.get('clusterId'),
-            #                  "name": replication.get('clusterName')
-            #                 }
-            #             )
+
+            if run.get('localBackupInfo'):
+                if run.get('localBackupInfo').get('status') in target_statuses:
+                    cancel_params[0]['localTaskId'] = run.get('localBackupInfo').get('localTaskId')
+                    cancel_params = cancel_run(id, cancel_params)
+                if delete_snapshots_for_run:
+                    delete_snaps_params[0]['localSnapshotConfig'] = {"deleteSnapshot": True}
+            if run.get('replicationInfo'):
+                cancel_params[0]['replicationTaskId'] = []
+                for replication in run['replicationInfo']['replicationTargetResults']:
+                    if replication.get('status') in target_statuses:
+                        cancel_params[0]['replicationTaskId'].append(replication.get('replicationTaskId'))
+                        cancel_params = cancel_run(id, cancel_params)
+                    if delete_snapshots_for_run:
+                        if delete_snaps_params[0].get('replicationSnapshotConfig') is None:
+                            delete_snaps_params[0]['replicationSnapshotConfig'] = {'updateExistingSnapshotConfig': []}
+                        delete_snaps_params[0]['replicationSnapshotConfig']['updateExistingSnapshotConfig'].append(
+                            {"deleteSnapshot": True,
+                             "id": replication.get('clusterId'),
+                             "name": replication.get('clusterName')
+                            }
+                        )
 
             if run.get('archivalInfo'):
                 cancel_params[0]['archivalTaskId'] = []
